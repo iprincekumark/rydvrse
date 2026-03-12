@@ -1,0 +1,118 @@
+# ===========================
+# RYDVRSE — .gitignore
+# Enterprise-grade Spring Boot Modular Monolith
+# ===========================
+
+# ===================== Build Output =====================
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+
+# ===================== IDE Files =====================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+nbactions.xml
+nb-configuration.xml
+
+# ===================== Environment & Secrets =====================
+# CRITICAL: Never commit secrets to Git
+.env
+.env.*
+!.env.example
+*.env
+application-local.yml
+application-local.properties
+application-secrets.yml
+
+# AWS / Cloud credentials
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+credentials/
+
+# ===================== OS Generated =====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===================== Logs =====================
+logs/
+*.log
+*.log.*
+spring.log
+
+# ===================== Maven =====================
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# ===================== Gradle (if switched) =====================
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# ===================== Docker =====================
+docker-compose.override.yml
+*.pid
+
+# ===================== Runtime Data =====================
+/data/
+/uploads/
+/tmp/
+*.dump
+*.hprof
+hs_err_pid*
+
+# ===================== Test Output =====================
+/coverage/
+test-output/
+surefire-reports/
+failsafe-reports/
+
+# ===================== Node (if frontend added) =====================
+node_modules/
+dist/
+.next/
+
+# ===================== Misc =====================
+*.swp
+*.swo
+*~
+.cache/
+.temp/
+walkthrough.md
