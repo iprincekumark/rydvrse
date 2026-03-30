@@ -1,19 +1,18 @@
 package com.rydvrse.shared.event;
 
 /**
- * Abstraction for publishing domain events.
- * In the modular monolith, this uses Spring's ApplicationEventPublisher.
- * When extracting to microservices, swap to Kafka-backed implementation.
+ * Abstraction for event publishing. Uses Spring ApplicationEventPublisher for MVP;
+ * designed for drop-in Kafka replacement.
  */
 public interface EventPublisher {
 
     /**
-     * Publish a domain event to in-process listeners.
+     * Publish event synchronously (within the current transaction).
      */
     void publish(DomainEvent event);
 
     /**
-     * Publish a domain event to Kafka for async consumers (analytics, notifications).
+     * Publish event asynchronously after the current transaction commits.
      */
     void publishAsync(DomainEvent event);
 }

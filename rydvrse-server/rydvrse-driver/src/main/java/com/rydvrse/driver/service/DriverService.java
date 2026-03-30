@@ -1,134 +1,84 @@
 package com.rydvrse.driver.service;
 
-import com.rydvrse.auth.event.UserRegisteredEvent;
-import com.rydvrse.driver.domain.Driver;
-import com.rydvrse.driver.domain.DriverDocument;
-import com.rydvrse.driver.event.DriverVerifiedEvent;
-import com.rydvrse.driver.event.DriverAvailabilityChangedEvent;
-import com.rydvrse.driver.repository.DriverRepository;
-import com.rydvrse.shared.enums.DriverStatus;
-import com.rydvrse.shared.enums.UserRole;
-import com.rydvrse.shared.enums.VerificationStatus;
-import com.rydvrse.shared.event.EventPublisher;
-import com.rydvrse.shared.exception.BusinessRuleException;
+import com.rydvrse.driver.entity.*;
+import com.rydvrse.driver.repository.*;
 import com.rydvrse.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
-/**
- * Driver lifecycle service.
- * Handles: registration → document upload → KYC verification → activation → availability.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DriverService {
 
     private final DriverRepository driverRepository;
-    private final EventPublisher eventPublisher;
-
-    @EventListener
-    @Transactional
-    public void onUserRegistered(UserRegisteredEvent event) {
-        if (event.getRole() != UserRole.DRIVER) return;
-        if (driverRepository.existsByPhoneNumber(event.getPhoneNumber())) return;
-
-        Driver driver = Driver.builder()
-                .authUserId(event.getAggregateId())
-                .phoneNumber(event.getPhoneNumber())
-                .status(DriverStatus.PENDING_VERIFICATION)
-                .build();
-        driverRepository.save(driver);
-        log.info("Driver profile created for auth user: {}", event.getAggregateId());
-    }
+    private final DriverDocumentRepository documentRepository;
+    private final DriverLocationRepository locationRepository;
+    private final DriverAvailabilityRepository availabilityRepository;
+    private static final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Transactional(readOnly = true)
-    public Driver getDriver(UUID driverId) {
-        return driverRepository.findById(driverId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver", driverId.toString()));
-    }
-
-    @Transactional(readOnly = true)
-    public Driver getDriverByAuth(UUID authUserId) {
-        return driverRepository.findByAuthUserId(authUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Driver", authUserId.toString()));
+    public Driver getProfile(UUID driverId) {
+        return findById(driverId);
     }
 
     @Transactional
-    public Driver updateProfile(UUID driverId, String firstName, String lastName,
-                                 String email, String licenseNumber, String operatingCity) {
-        Driver driver = getDriver(driverId);
-        if (firstName != null) driver.setFirstName(firstName);
-        if (lastName != null) driver.setLastName(lastName);
+    public Driver updateProfile(UUID driverId, String name, String email, String profileImageUrl) {
+        Driver driver = findById(driverId);
+        if (name != null) driver.setName(name);
         if (email != null) driver.setEmail(email);
-        if (licenseNumber != null) driver.setLicenseNumber(licenseNumber);
-        if (operatingCity != null) driver.setOperatingCity(operatingCity);
+        if (profileImageUrl != null) driver.setProfileImageUrl(profileImageUrl);
         return driverRepository.save(driver);
     }
 
     @Transactional
-    public DriverDocument uploadDocument(UUID driverId, String docType, String docUrl, String docNumber) {
-        Driver driver = getDriver(driverId);
-        DriverDocument doc = DriverDocument.builder()
-                .driver(driver)
-                .documentType(docType)
-                .documentUrl(docUrl)
-                .documentNumber(docNumber)
-                .verificationStatus(VerificationStatus.SUBMITTED)
-                .build();
-        driver.getDocuments().add(doc);
-        driver.setStatus(DriverStatus.DOCUMENT_SUBMITTED);
-        driverRepository.save(driver);
-        log.info("Document {} uploaded for driver {}", docType, driverId);
-        return doc;
+    public DriverDocument uploadDocument(UUID driverId, DriverDocument document) {
+        Driver driver = findById(driverId);
+        document.setDriver(driver);
+        return documentRepository.save(document);
     }
 
-    /** Called by Operations module after document verification */
-    @Transactional
-    public void verifyDriver(UUID driverId) {
-        Driver driver = getDriver(driverId);
-        driver.setStatus(DriverStatus.ACTIVE);
-        driverRepository.save(driver);
-        eventPublisher.publish(new DriverVerifiedEvent(driverId));
-        eventPublisher.publishAsync(new DriverVerifiedEvent(driverId));
-        log.info("Driver {} verified and activated", driverId);
+    @Transactional(readOnly = true)
+    public List<DriverDocument> getDocuments(UUID driverId) {
+        return documentRepository.findByDriverId(driverId);
     }
 
     @Transactional
-    public void toggleAvailability(UUID driverId, boolean available) {
-        Driver driver = getDriver(driverId);
-        if (driver.getStatus() != DriverStatus.ACTIVE) {
-            throw new BusinessRuleException("Driver must be verified before going online");
-        }
-        if (driver.getIsOnTrip()) {
-            throw new BusinessRuleException("Cannot change availability during an active trip");
-        }
-        driver.setIsAvailable(available);
-        driverRepository.save(driver);
-        eventPublisher.publish(new DriverAvailabilityChangedEvent(driverId, available));
-        log.info("Driver {} availability: {}", driverId, available);
+    public DriverAvailability updateAvailability(UUID driverId, boolean isOnline) {
+        DriverAvailability availability = availabilityRepository.findByDriverId(driverId)
+                .orElse(DriverAvailability.builder().driverId(driverId).build());
+        availability.setIsOnline(isOnline);
+        if (isOnline) availability.setLastOnlineAt(Instant.now());
+        return availabilityRepository.save(availability);
     }
 
     @Transactional
-    public void updateRating(UUID driverId, double newRating) {
-        Driver driver = getDriver(driverId);
-        int total = driver.getTotalRatings() + 1;
-        double avg = ((driver.getAverageRating() * driver.getTotalRatings()) + newRating) / total;
-        driver.setAverageRating(Math.round(avg * 100.0) / 100.0);
-        driver.setTotalRatings(total);
-        driverRepository.save(driver);
+    public DriverLocation updateLocation(UUID driverId, double lat, double lng,
+                                          Double heading, Double speed) {
+        DriverLocation location = locationRepository.findByDriverId(driverId)
+                .orElse(DriverLocation.builder().driverId(driverId).build());
+        location.setPoint(geometryFactory.createPoint(new Coordinate(lng, lat)));
+        location.setHeading(heading);
+        location.setSpeed(speed);
+        return locationRepository.save(location);
     }
 
-    @Transactional
-    public void markOnTrip(UUID driverId, boolean onTrip) {
-        Driver driver = getDriver(driverId);
-        driver.setIsOnTrip(onTrip);
-        if (onTrip) driver.setIsAvailable(false);
-        driverRepository.save(driver);
+    @Transactional(readOnly = true)
+    public List<UUID> findNearbyDriverIds(double lat, double lng, double radiusKm) {
+        return locationRepository.findNearbyDriverIds(lng, lat, radiusKm * 1000);
+    }
+
+    public Driver findById(UUID id) {
+        return driverRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Driver", id.toString()));
     }
 }

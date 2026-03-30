@@ -1,12 +1,5 @@
 package com.rydvrse.shared.enums;
 
-/**
- * Global user roles for RBAC across RYDVRSE.
- */
 public enum UserRole {
-    CUSTOMER,
-    DRIVER,
-    ADMIN,
-    SUPER_ADMIN,
-    OPERATIONS
+    CUSTOMER, DRIVER, SUPER_ADMIN, OPS_ADMIN, SUPPORT_AGENT
 }

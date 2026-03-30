@@ -5,5 +5,6 @@ import lombok.*;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class RefreshTokenRequest {
-    @NotBlank private String refreshToken;
+    @NotBlank(message = "Refresh token is required")
+    private String refreshToken;
 }

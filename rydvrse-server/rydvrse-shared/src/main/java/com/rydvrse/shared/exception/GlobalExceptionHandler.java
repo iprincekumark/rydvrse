@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 /**
  * Global exception handler for all REST controllers.
- * Converts exceptions to standardized ApiResponse error format.
+ * Maps domain exceptions to standardized HTTP error responses.
  */
 @Slf4j
 @RestControllerAdvice
@@ -27,6 +27,27 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicate(DuplicateResourceException ex) {
+        log.warn("Duplicate resource: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
+        log.warn("Unauthorized: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidState(InvalidStateTransitionException ex) {
+        log.warn("Invalid state transition: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
+    }
+
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessRule(BusinessRuleException ex) {
         log.warn("Business rule violation: {}", ex.getMessage());
@@ -34,10 +55,17 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
-        log.warn("Unauthorized: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+    @ExceptionHandler(PaymentFailedException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePaymentFailed(PaymentFailedException ex) {
+        log.error("Payment gateway error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRateLimit(RateLimitExceededException ex) {
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 

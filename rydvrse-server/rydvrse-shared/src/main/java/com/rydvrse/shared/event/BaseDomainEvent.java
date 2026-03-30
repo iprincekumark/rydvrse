@@ -7,8 +7,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Abstract base implementation of DomainEvent.
- * All concrete domain events should extend this class.
+ * Abstract base for all domain events. Designed for future Kafka migration —
+ * all fields map directly to Kafka message headers/payload.
  */
 @Getter
 @Setter
@@ -16,8 +16,9 @@ public abstract class BaseDomainEvent implements DomainEvent {
 
     private UUID eventId;
     private String eventType;
-    private UUID aggregateId;
     private Instant occurredAt;
+    private UUID aggregateId;
+    private String aggregateType;
     private String sourceModule;
 
     protected BaseDomainEvent() {
@@ -25,10 +26,11 @@ public abstract class BaseDomainEvent implements DomainEvent {
         this.occurredAt = Instant.now();
     }
 
-    protected BaseDomainEvent(String eventType, UUID aggregateId, String sourceModule) {
+    protected BaseDomainEvent(String eventType, UUID aggregateId, String aggregateType, String sourceModule) {
         this();
         this.eventType = eventType;
         this.aggregateId = aggregateId;
+        this.aggregateType = aggregateType;
         this.sourceModule = sourceModule;
     }
 }

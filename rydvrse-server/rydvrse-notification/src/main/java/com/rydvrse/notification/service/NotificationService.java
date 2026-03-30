@@ -1,85 +1,55 @@
 package com.rydvrse.notification.service;
 
-import com.rydvrse.payment.event.PaymentCompletedEvent;
-import com.rydvrse.trip.event.TripCompletedEvent;
-import com.rydvrse.trip.event.TripRequestedEvent;
-import com.rydvrse.trip.event.TripStatusChangedEvent;
-import com.rydvrse.auth.event.UserRegisteredEvent;
+import com.rydvrse.notification.entity.DeviceToken;
+import com.rydvrse.notification.entity.NotificationLog;
+import com.rydvrse.notification.repository.DeviceTokenRepository;
+import com.rydvrse.notification.repository.NotificationLogRepository;
+import com.rydvrse.shared.enums.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Notification service — listens to domain events and sends notifications
- * via Push, SMS, Email, and In-App channels.
- *
- * In production: integrates with Firebase Cloud Messaging (push),
- * AWS SNS/Twilio (SMS), and SendGrid (email).
- */
-@Slf4j
-@Service
+import java.time.Duration;
+import java.util.UUID;
+
+@Slf4j @Service @RequiredArgsConstructor
 public class NotificationService {
+    private final NotificationLogRepository logRepository;
+    private final DeviceTokenRepository tokenRepository;
+    private final StringRedisTemplate redisTemplate;
 
-    @EventListener
-    @Async
-    public void onUserRegistered(UserRegisteredEvent event) {
-        log.info("[NOTIFICATION] Welcome SMS to {}: Welcome to RYDVRSE!", event.getPhoneNumber());
-        // sendSms(event.getPhoneNumber(), "Welcome to RYDVRSE! Your Car. Our Driver. Your Destination.");
-    }
+    private static final Duration DEDUP_TTL = Duration.ofMinutes(5);
 
-    @EventListener
-    @Async
-    public void onTripRequested(TripRequestedEvent event) {
-        log.info("[NOTIFICATION] Push to customer {}: Looking for nearby drivers...",
-                event.getCustomerId());
-        // sendPush(customerId, "Searching for drivers near you...");
-    }
-
-    @EventListener
-    @Async
-    public void onTripStatusChanged(TripStatusChangedEvent event) {
-        switch (event.getNewStatus()) {
-            case "DRIVER_ASSIGNED":
-                log.info("[NOTIFICATION] Push to customer {}: Driver assigned!",
-                        event.getCustomerId());
-                log.info("[NOTIFICATION] Push to driver {}: New trip assigned!",
-                        event.getDriverId());
-                break;
-            case "DRIVER_ARRIVING":
-                log.info("[NOTIFICATION] Push to customer {}: Driver has arrived!",
-                        event.getCustomerId());
-                break;
-            case "TRIP_STARTED":
-                log.info("[NOTIFICATION] Push to customer {}: Trip has started!",
-                        event.getCustomerId());
-                break;
-            case "CANCELLED":
-                log.info("[NOTIFICATION] Push to customer {}: Trip cancelled",
-                        event.getCustomerId());
-                if (event.getDriverId() != null) {
-                    log.info("[NOTIFICATION] Push to driver {}: Trip cancelled",
-                            event.getDriverId());
-                }
-                break;
+    @Transactional
+    public void send(UUID recipientId, UserType recipientType, NotificationChannel channel,
+                     String type, String title, String body) {
+        // Deduplication check
+        String dedupKey = String.format("notif_dedup:%s:%s:%s", type, recipientId, channel);
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(dedupKey))) {
+            log.debug("Notification deduplicated: {}", dedupKey);
+            return;
         }
+
+        NotificationLog notifLog = NotificationLog.builder()
+                .recipientId(recipientId).recipientType(recipientType)
+                .channel(channel).type(type).title(title).body(body)
+                .status(NotificationStatus.SENT).build();
+        logRepository.save(notifLog);
+
+        // In production: dispatch to FCM/Twilio/WebSocket based on channel
+        log.info("Notification sent: {} → {} [{}] via {}", type, recipientId, title, channel);
+
+        redisTemplate.opsForValue().set(dedupKey, "1", DEDUP_TTL);
     }
 
-    @EventListener
-    @Async
-    public void onTripCompleted(TripCompletedEvent event) {
-        log.info("[NOTIFICATION] Push to customer {}: Trip completed! Fare: ₹{}",
-                event.getCustomerId(), event.getFinalFare());
-        log.info("[NOTIFICATION] Push to driver {}: Trip completed! You earned for this trip",
-                event.getDriverId());
-    }
-
-    @EventListener
-    @Async
-    public void onPaymentCompleted(PaymentCompletedEvent event) {
-        log.info("[NOTIFICATION] Push to customer {}: Payment of ₹{} processed",
-                event.getCustomerId(), event.getAmount());
-        log.info("[NOTIFICATION] Push to driver {}: ₹{} credited to wallet",
-                event.getDriverId(), event.getDriverPayout());
+    @Transactional
+    public DeviceToken registerToken(UUID userId, UserType userType, DevicePlatform platform, String fcmToken) {
+        DeviceToken token = tokenRepository.findByUserIdAndPlatform(userId, platform)
+                .orElse(DeviceToken.builder().userId(userId).userType(userType).platform(platform).build());
+        token.setFcmToken(fcmToken);
+        token.setIsActive(true);
+        return tokenRepository.save(token);
     }
 }

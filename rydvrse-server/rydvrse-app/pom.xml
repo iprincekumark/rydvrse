@@ -44,10 +44,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka</artifactId>
-        </dependency>
 
         <!-- Database -->
         <dependency>
@@ -55,6 +51,12 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- flyway-core is managed by Spring Boot BOM -->
 
         <!-- API Docs -->
         <dependency>
@@ -73,7 +75,7 @@
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-user</artifactId>
+            <artifactId>rydvrse-customer</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
@@ -81,23 +83,7 @@
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-vehicle</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-location</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
             <artifactId>rydvrse-trip</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-dispatch</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-pricing</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
@@ -105,7 +91,7 @@
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-wallet</artifactId>
+            <artifactId>rydvrse-safety</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
@@ -113,23 +99,7 @@
         </dependency>
         <dependency>
             <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-support</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
             <artifactId>rydvrse-admin</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-operations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-safety</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rydvrse</groupId>
-            <artifactId>rydvrse-analytics</artifactId>
         </dependency>
 
         <!-- Test -->

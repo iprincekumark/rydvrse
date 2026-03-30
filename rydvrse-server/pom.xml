@@ -22,21 +22,13 @@
     <modules>
         <module>rydvrse-shared</module>
         <module>rydvrse-auth</module>
-        <module>rydvrse-user</module>
+        <module>rydvrse-customer</module>
         <module>rydvrse-driver</module>
-        <module>rydvrse-vehicle</module>
-        <module>rydvrse-location</module>
         <module>rydvrse-trip</module>
-        <module>rydvrse-dispatch</module>
-        <module>rydvrse-pricing</module>
         <module>rydvrse-payment</module>
-        <module>rydvrse-wallet</module>
-        <module>rydvrse-notification</module>
-        <module>rydvrse-support</module>
-        <module>rydvrse-admin</module>
-        <module>rydvrse-operations</module>
         <module>rydvrse-safety</module>
-        <module>rydvrse-analytics</module>
+        <module>rydvrse-notification</module>
+        <module>rydvrse-admin</module>
         <module>rydvrse-app</module>
     </modules>
 
@@ -44,13 +36,14 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <lombok.version>1.18.36</lombok.version>
+        <lombok.version>edge-SNAPSHOT</lombok.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Dependency Versions -->
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.3.0</springdoc.version>
-        <guava.version>33.0.0-jre</guava.version>
+        <hibernate-spatial.version>6.4.4.Final</hibernate-spatial.version>
+        <archunit.version>1.2.1</archunit.version>
     </properties>
 
     <dependencyManagement>
@@ -68,7 +61,7 @@
             </dependency>
             <dependency>
                 <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-user</artifactId>
+                <artifactId>rydvrse-customer</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -78,27 +71,7 @@
             </dependency>
             <dependency>
                 <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-vehicle</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-location</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
                 <artifactId>rydvrse-trip</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-dispatch</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-pricing</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -108,7 +81,7 @@
             </dependency>
             <dependency>
                 <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-wallet</artifactId>
+                <artifactId>rydvrse-safety</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -118,27 +91,7 @@
             </dependency>
             <dependency>
                 <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-support</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
                 <artifactId>rydvrse-admin</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-operations</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-safety</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rydvrse</groupId>
-                <artifactId>rydvrse-analytics</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -166,16 +119,22 @@
                 <version>${springdoc.version}</version>
             </dependency>
 
-            <!-- Guava -->
+            <!-- Hibernate Spatial (PostGIS) -->
             <dependency>
-                <groupId>com.google.guava</groupId>
-                <artifactId>guava</artifactId>
-                <version>${guava.version}</version>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-spatial</artifactId>
+                <version>${hibernate-spatial.version}</version>
+            </dependency>
+
+            <!-- ArchUnit -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-
 
     <!-- Dependencies inherited by ALL modules -->
     <dependencies>
@@ -210,4 +169,14 @@
             </plugin>
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>projectlombok.org</id>
+            <url>https://projectlombok.org/edge-releases</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 </project>

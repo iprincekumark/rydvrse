@@ -1,61 +1,70 @@
 package com.rydvrse.safety.service;
 
-import com.rydvrse.safety.domain.SafetyIncident;
-import com.rydvrse.safety.repository.SafetyIncidentRepository;
-import com.rydvrse.shared.domain.GeoLocation;
-import com.rydvrse.shared.event.EventPublisher;
+import com.rydvrse.safety.entity.*;
+import com.rydvrse.safety.repository.*;
+import com.rydvrse.shared.enums.*;
 import com.rydvrse.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Safety service — handles emergency SOS, incident reporting, and safety monitoring.
- * In production: integrates with local police API and emergency contacts.
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
+@Slf4j @Service @RequiredArgsConstructor
 public class SafetyService {
-
-    private final SafetyIncidentRepository incidentRepository;
-    private final EventPublisher eventPublisher;
+    private final SosAlertRepository sosRepository;
+    private final IncidentRepository incidentRepository;
+    private final TripShareLinkRepository shareRepository;
 
     @Transactional
-    public SafetyIncident reportSos(UUID tripId, UUID reporterId, String reporterType,
-                                     double lat, double lng) {
-        SafetyIncident incident = SafetyIncident.builder()
-                .tripId(tripId).reportedBy(reporterId).reporterType(reporterType)
-                .incidentType("SOS").description("Emergency SOS triggered")
-                .location(GeoLocation.builder().latitude(lat).longitude(lng).build())
-                .priority("CRITICAL").build();
-        SafetyIncident saved = incidentRepository.save(incident);
-        log.error("[SOS ALERT] Emergency SOS for trip {} at [{}, {}]", tripId, lat, lng);
-        // In production: alert emergency contacts, notify operations team, alert police
-        return saved;
+    public SosAlert triggerSos(UUID tripId, UUID userId, UserType userType, double lat, double lng) {
+        SosAlert sos = SosAlert.builder()
+                .tripId(tripId).triggeredBy(userType).triggeredById(userId)
+                .lat(lat).lng(lng).status(SosStatus.ACTIVE).build();
+        log.warn("SOS ALERT triggered for trip {} by {} {}", tripId, userType, userId);
+        return sosRepository.save(sos);
     }
 
     @Transactional
-    public SafetyIncident reportIncident(SafetyIncident incident) {
-        SafetyIncident saved = incidentRepository.save(incident);
-        log.warn("[SAFETY] Incident reported: {} for trip {}", saved.getIncidentType(), saved.getTripId());
-        return saved;
+    public SosAlert resolveSos(UUID sosId, UUID resolvedBy, String notes) {
+        SosAlert sos = sosRepository.findById(sosId)
+                .orElseThrow(() -> new ResourceNotFoundException("SosAlert", sosId.toString()));
+        sos.setStatus(SosStatus.RESOLVED);
+        sos.setResolvedAt(Instant.now());
+        sos.setResolvedBy(resolvedBy);
+        sos.setNotes(notes);
+        return sosRepository.save(sos);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SosAlert> getActiveSosAlerts() {
+        return sosRepository.findByStatus(SosStatus.ACTIVE);
     }
 
     @Transactional
-    public SafetyIncident resolveIncident(UUID incidentId, String notes) {
-        SafetyIncident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new ResourceNotFoundException("SafetyIncident", incidentId.toString()));
-        incident.setStatus("RESOLVED");
-        incident.setResolutionNotes(notes);
+    public Incident reportIncident(UUID tripId, UUID reporterId, UserType reportedBy,
+                                    IncidentType type, String description, IncidentPriority priority) {
+        Incident incident = Incident.builder()
+                .tripId(tripId).reporterId(reporterId).reportedBy(reportedBy)
+                .type(type).description(description).priority(priority).build();
         return incidentRepository.save(incident);
     }
 
     @Transactional(readOnly = true)
-    public List<SafetyIncident> getActiveIncidents() {
-        return incidentRepository.findByStatusOrderByCreatedAtDesc("REPORTED");
+    public Incident getIncident(UUID incidentId) {
+        return incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Incident", incidentId.toString()));
+    }
+
+    @Transactional
+    public TripShareLink shareTrip(UUID tripId, UUID customerId, String recipientPhone, String recipientName) {
+        TripShareLink link = TripShareLink.builder()
+                .tripId(tripId).customerId(customerId)
+                .recipientPhone(recipientPhone).recipientName(recipientName)
+                .expiresAt(Instant.now().plusSeconds(86400)).build();
+        return shareRepository.save(link);
     }
 }
