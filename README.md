@@ -284,36 +284,132 @@ Platform dashboard with real-time stats, customer/driver/trip/payment/safety/inc
 
 ---
 
-## Getting Started
+## Getting Started — Local Development
 
 ### Prerequisites
-- Java 21+ (tested on JDK 25)
-- Maven 3.9+
-- Docker & Docker Compose
 
-### 1. Start Infrastructure
+| Tool | Version | Check |
+|------|---------|-------|
+| **Java** | JDK 21+ (tested on JDK 25) | `java -version` |
+| **Maven** | 3.9+ | `mvn -version` |
+| **Node.js** | 18+ | `node -v` |
+| **npm** | 9+ | `npm -v` |
+| **Docker** | 24+ (with Docker Compose) | `docker --version` |
+
+---
+
+### Step 1 — Start Infrastructure (PostgreSQL + Redis)
+
 ```bash
 cd rydvrse-server
 docker-compose up -d
-# Starts PostGIS (port 5432) + Redis (port 6379)
 ```
 
-### 2. Build the Project
+This starts:
+- **PostGIS** (PostgreSQL 16 + PostGIS 3.4) on port `5432`
+- **Redis 7** on port `6379`
+
+Verify:
 ```bash
+docker ps   # Should show 2 running containers
+```
+
+---
+
+### Step 2 — Start the Backend (Spring Boot)
+
+```bash
+cd rydvrse-server
+
+# First time or after code changes:
 mvn clean install -DskipTests
-```
 
-### 3. Run the Application
-```bash
+# Start the server:
 mvn spring-boot:run -pl rydvrse-app
 ```
 
-### 4. Access APIs
+The server starts on **http://localhost:8080**. You should see:
+```
+Started RydvrseApplication in ~3 seconds
+```
+
 | Resource | URL |
 |----------|-----|
 | **Swagger UI** | http://localhost:8080/swagger-ui.html |
 | **Health Check** | http://localhost:8080/actuator/health |
 | **API Docs** | http://localhost:8080/v3/api-docs |
+
+---
+
+### Step 3 — Start the Frontend (Vite + React)
+
+```bash
+cd rydvrse-client/app
+
+# Install dependencies (first time only):
+npm install
+
+# Start the dev server:
+npm run dev
+```
+
+The client starts on **http://localhost:5173** and proxies API calls to the backend at `localhost:8080`.
+
+---
+
+### Step 4 — Test the Full Flow
+
+1. Open **http://localhost:5173** in your browser
+2. Enter any 10-digit phone number on the login page
+3. Click **Continue** → You'll be taken to the OTP verification page
+4. Enter the dev bypass OTP: **`123456`**
+5. You'll be authenticated and redirected to the dashboard
+
+#### Dev Bypass OTP
+
+For local development, the OTP **`123456`** works for **any phone number** — no SMS gateway needed.
+
+This is controlled by the `rydvrse.otp.dev-bypass-enabled` property in `application.yml`:
+```yaml
+rydvrse:
+  otp:
+    dev-bypass-enabled: true    # Set to false for production
+```
+
+You can also verify via curl:
+```bash
+# Send OTP (optional — bypass works without this)
+curl -X POST http://localhost:8080/api/v1/auth/otp/send \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+919876543210","userType":"CUSTOMER"}'
+
+# Verify with bypass OTP
+curl -X POST http://localhost:8080/api/v1/auth/otp/verify \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+919876543210","otp":"123456","userType":"CUSTOMER"}'
+```
+
+---
+
+### Quick Reference
+
+| Service | Port | Command |
+|---------|------|---------|
+| PostgreSQL (PostGIS) | 5432 | `docker-compose up -d` |
+| Redis | 6379 | `docker-compose up -d` |
+| Backend (Spring Boot) | 8080 | `mvn spring-boot:run -pl rydvrse-app` |
+| Frontend (Vite) | 5173 | `npm run dev` (from `rydvrse-client/app`) |
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Server fails to start | Check Docker is running: `docker ps` should show PostGIS + Redis |
+| `Port 8080 already in use` | Kill the process: `kill $(lsof -i :8080 -t)` |
+| `Port 5173 already in use` | Kill the process: `kill $(lsof -i :5173 -t)` |
+| Code changes not taking effect | Do a full rebuild: `mvn clean install -DskipTests` |
+| OTP bypass not working | Ensure `dev-bypass-enabled: true` in `application.yml` and rebuild |
+| CORS errors in browser | Server CORS is configured for `localhost:5173` — check SecurityConfig |
 
 ### Security
 
