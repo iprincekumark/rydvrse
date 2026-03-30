@@ -1,180 +1,166 @@
 /**
- * OTP Verification Page
- * Verifies the OTP sent to user's mobile number
+ * OTP Verification Page — Glowing OTP input with countdown timer
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import { useAuth } from '@/hooks';
-import { isValidOtp } from '@/utils/validators';
-import { formatPhoneNumber } from '@/utils/formatters';
 
 export const OtpVerificationPage: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { verifyOtp, sendOtp, isLoading } = useAuth();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
-  const [resendTimer, setResendTimer] = useState(30);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [countdown, setCountdown] = useState(30);
+  const [canResend, setCanResend] = useState(false);
 
-  const phoneNumber = location.state?.phoneNumber as string;
+  const phoneNumber = location.state?.phoneNumber;
 
-  // Redirect if no phone number
   useEffect(() => {
     if (!phoneNumber) {
       navigate('/login');
     }
   }, [phoneNumber, navigate]);
 
-  // Resend timer countdown
   useEffect(() => {
-    if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
     }
-  }, [resendTimer]);
+  }, [countdown]);
 
-  const handleChange = (index: number, value: string) => {
-    // Only allow numbers
-    if (!/^\d*$/.test(value)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value.slice(-1); // Take only the last digit
-    setOtp(newOtp);
+  const handleVerify = async () => {
     setError('');
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-submit when all digits are entered
-    if (index === 5 && value) {
-      const fullOtp = [...newOtp.slice(0, 5), value].join('');
-      if (isValidOtp(fullOtp)) {
-        handleSubmit(fullOtp);
-      }
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    // Move to previous input on backspace
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleSubmit = async (fullOtp: string) => {
-    setError('');
-
-    if (!isValidOtp(fullOtp)) {
-      setError('Please enter a valid 6-digit OTP');
+    if (otp.length !== 6) {
+      setError('Please enter the 6-digit OTP');
       return;
     }
-
-    const success = await verifyOtp(phoneNumber, fullOtp);
+    const success = await verifyOtp(phoneNumber, otp);
     if (!success) {
       setError('Invalid OTP. Please try again.');
-      setOtp(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
+      setOtp('');
     }
   };
 
   const handleResend = async () => {
-    const success = await sendOtp(phoneNumber);
-    if (success) {
-      setResendTimer(30);
-      setOtp(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
-    }
+    if (!canResend) return;
+    setCanResend(false);
+    setCountdown(30);
+    setOtp('');
+    setError('');
+    await sendOtp(phoneNumber);
   };
 
-  const handleBack = () => {
-    navigate('/login');
-  };
+  useEffect(() => {
+    if (otp.length === 6) {
+      handleVerify();
+    }
+  }, [otp]);
 
   return (
-    <Card>
-      <CardHeader className="space-y-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute left-4 top-4"
-          onClick={handleBack}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="glass-card p-8">
+        {/* Back button */}
+        <button
+          onClick={() => navigate('/login')}
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
         >
           <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <CardTitle className="text-2xl text-center">Verify OTP</CardTitle>
-        <CardDescription className="text-center">
-          Enter the 6-digit code sent to{' '}
-          <span className="font-medium">{formatPhoneNumber(phoneNumber)}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          {/* OTP Input */}
-          <div className="flex justify-center gap-2">
-            {otp.map((digit, index) => (
-              <input
-                key={index}
-                ref={(el) => { inputRefs.current[index] = el; }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                className="w-12 h-14 text-center text-2xl font-semibold border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                disabled={isLoading}
-              />
-            ))}
-          </div>
+          Back
+        </button>
 
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
-          )}
-
-          {/* Verify Button */}
-          <Button
-            onClick={() => handleSubmit(otp.join(''))}
-            className="w-full"
-            disabled={isLoading || otp.some((d) => !d)}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying...
-              </>
-            ) : (
-              'Verify & Continue'
-            )}
-          </Button>
-
-          {/* Resend OTP */}
-          <div className="text-center">
-            {resendTimer > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Resend OTP in {resendTimer}s
-              </p>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResend}
-                disabled={isLoading}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Resend OTP
-              </Button>
-            )}
+        {/* Icon */}
+        <div className="flex justify-center mb-6">
+          <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow">
+            <ShieldCheck className="h-8 w-8 text-white" />
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Title */}
+        <div className="text-center mb-8">
+          <h2 className="text-xl font-semibold text-foreground mb-2">
+            Verify your number
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            We sent a 6-digit code to{' '}
+            <span className="text-foreground font-medium">+91 {phoneNumber}</span>
+          </p>
+        </div>
+
+        {/* OTP Input */}
+        <div className="flex justify-center mb-6">
+          <InputOTP
+            maxLength={6}
+            value={otp}
+            onChange={(value) => {
+              setOtp(value);
+              setError('');
+            }}
+            disabled={isLoading}
+          >
+            <InputOTPGroup>
+              <InputOTPSlot index={0} className="w-12 h-14 text-lg bg-white/5 border-white/10 focus:border-primary" />
+              <InputOTPSlot index={1} className="w-12 h-14 text-lg bg-white/5 border-white/10 focus:border-primary" />
+              <InputOTPSlot index={2} className="w-12 h-14 text-lg bg-white/5 border-white/10 focus:border-primary" />
+            </InputOTPGroup>
+            <InputOTPSeparator />
+            <InputOTPGroup>
+              <InputOTPSlot index={3} className="w-12 h-14 text-lg bg-white/5 border-white/10 focus:border-primary" />
+              <InputOTPSlot index={4} className="w-12 h-14 text-lg bg-white/5 border-white/10 focus:border-primary" />
+              <InputOTPSlot index={5} className="w-12 h-14 text-lg bg-white/5 border-white/10 focus:border-primary" />
+            </InputOTPGroup>
+          </InputOTP>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-sm text-destructive text-center mb-4"
+          >
+            {error}
+          </motion.p>
+        )}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="flex items-center justify-center gap-2 mb-4 text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Verifying...</span>
+          </div>
+        )}
+
+        {/* Resend */}
+        <div className="text-center">
+          {canResend ? (
+            <Button
+              variant="ghost"
+              onClick={handleResend}
+              className="text-sm text-primary hover:text-primary/80"
+            >
+              Resend OTP
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Resend code in{' '}
+              <span className="text-foreground font-mono font-semibold">{countdown}s</span>
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

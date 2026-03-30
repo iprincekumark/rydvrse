@@ -30,16 +30,17 @@ const LoadingFallback = () => (
     alignItems: 'center',
     justifyContent: 'center',
     gap: '1rem',
+    background: 'hsl(240 6% 4%)',
   }}>
     <div style={{
       width: '40px',
       height: '40px',
-      border: '3px solid #e5e7eb',
-      borderTop: '3px solid #1a1a1a',
+      border: '3px solid rgba(255,255,255,0.1)',
+      borderTop: '3px solid hsl(217 91% 60%)',
       borderRadius: '50%',
       animation: 'spin 0.8s linear infinite',
     }} />
-    <p style={{ color: '#666', fontSize: '0.875rem' }}>Loading RYDVRSE...</p>
+    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem', letterSpacing: '0.05em' }}>Loading RYDVRSE...</p>
     <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
 );

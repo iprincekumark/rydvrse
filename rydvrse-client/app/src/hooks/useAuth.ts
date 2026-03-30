@@ -22,10 +22,12 @@ export const useAuth = () => {
   const sendOtp = useCallback(async (phoneNumber: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await authService.sendOtp({ phoneNumber });
+      const phone = phoneNumber.startsWith('+91') ? phoneNumber : `+91${phoneNumber}`;
+      const response = await authService.sendOtp({ phone, userType: 'CUSTOMER' });
+      // response is ApiResponse wrapper: { success, message, data }
       addToast({
         type: 'success',
-        message: response.message || 'OTP sent successfully',
+        message: response?.message || 'OTP sent successfully',
       });
       return true;
     } catch (error) {
@@ -43,9 +45,32 @@ export const useAuth = () => {
   const verifyOtp = useCallback(async (phoneNumber: string, otp: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await authService.verifyOtp({ phoneNumber, otp });
+      const phone = phoneNumber.startsWith('+91') ? phoneNumber : `+91${phoneNumber}`;
+      const response = await authService.verifyOtp({ phone, otp, userType: 'CUSTOMER' });
+      // response is ServerAuthResponse: { accessToken, refreshToken, isNewUser, userType }
       
-      storeLogin(response.user, response.tokens);
+      // Build user and tokens for the store from the flat server response
+      const tokens = {
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        expiresIn: 900, // 15 min (from server config)
+      };
+
+      // For the auth store we create a minimal user object — full profile loads on dashboard
+      const userObj = {
+        id: '',
+        phoneNumber: phone,
+        firstName: '',
+        lastName: '',
+        role: response.userType as string as typeof UserRole[keyof typeof UserRole],
+        status: 'ACTIVE' as const,
+        email: undefined,
+        profileImageUrl: undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      storeLogin(userObj, tokens);
       
       addToast({
         type: 'success',
@@ -53,14 +78,14 @@ export const useAuth = () => {
       });
 
       // Redirect based on role
-      const role = response.user.role;
+      const role = response.userType;
       if (response.isNewUser) {
         navigate('/profile/setup');
-      } else if (role === UserRole.CUSTOMER) {
+      } else if (role === 'CUSTOMER') {
         navigate('/customer/dashboard');
-      } else if (role === UserRole.DRIVER) {
+      } else if (role === 'DRIVER') {
         navigate('/driver/dashboard');
-      } else if (role === UserRole.ADMIN) {
+      } else if (role === 'ADMIN') {
         navigate('/admin/dashboard');
       }
 
@@ -99,7 +124,7 @@ export const useAuth = () => {
   /**
    * Check if user has required role
    */
-  const hasRole = useCallback((roles: UserRole[]): boolean => {
+  const hasRole = useCallback((roles: (typeof UserRole[keyof typeof UserRole])[]): boolean => {
     if (!user) return false;
     return roles.includes(user.role);
   }, [user]);
