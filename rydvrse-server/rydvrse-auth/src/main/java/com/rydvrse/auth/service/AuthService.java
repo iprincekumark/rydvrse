@@ -4,14 +4,12 @@ import com.rydvrse.auth.dto.*;
 import com.rydvrse.auth.entity.RefreshToken;
 import com.rydvrse.auth.repository.RefreshTokenRepository;
 import com.rydvrse.shared.enums.UserType;
-import com.rydvrse.shared.event.EventPublisher;
 import com.rydvrse.shared.exception.BusinessRuleException;
 import com.rydvrse.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,12 +29,16 @@ public class AuthService {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
-    private final EventPublisher eventPublisher;
+
+    /** Dev-only bypass OTP — works for any phone number when dev bypass is enabled */
+    private static final String DEV_BYPASS_OTP = "123456";
 
     @Value("${rydvrse.otp.expiration-seconds:300}")
     private int otpExpirationSeconds;
+
+    @Value("${rydvrse.otp.dev-bypass-enabled:false}")
+    private boolean devBypassEnabled;
 
     private static final String OTP_KEY_PREFIX = "otp:";
     private static final String OTP_ATTEMPTS_PREFIX = "otp_attempts:";
@@ -70,15 +72,22 @@ public class AuthService {
             throw new BusinessRuleException("OTP_ATTEMPTS_EXCEEDED", "Maximum OTP verification attempts exceeded");
         }
 
+        // Dev bypass: accept "123456" for any phone when dev bypass is enabled
+        boolean isDevBypass = devBypassEnabled && DEV_BYPASS_OTP.equals(request.getOtp());
+
         String storedOtp = redisTemplate.opsForValue().get(key);
-        if (storedOtp == null) {
+        if (storedOtp == null && !isDevBypass) {
             throw new BusinessRuleException("OTP_EXPIRED", "OTP has expired or was not sent");
         }
 
-        if (!storedOtp.equals(request.getOtp())) {
+        if (!isDevBypass && !storedOtp.equals(request.getOtp())) {
             redisTemplate.opsForValue().increment(attemptsKey);
             redisTemplate.expire(attemptsKey, Duration.ofSeconds(otpExpirationSeconds));
             throw new UnauthorizedException("Invalid OTP");
+        }
+
+        if (isDevBypass) {
+            log.info("DEV BYPASS OTP accepted for {} [{}]", request.getPhone(), request.getUserType());
         }
 
         // OTP valid — delete it

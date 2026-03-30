@@ -50,6 +50,7 @@ rydvrse:
     refresh-token-expiration-ms: 2592000000    # 30 days
   otp:
     expiration-seconds: 300                     # 5 minutes
+    dev-bypass-enabled: true                    # Accept 123456 as OTP for any number (LOCAL DEV ONLY)
 
 # Swagger / OpenAPI
 springdoc:

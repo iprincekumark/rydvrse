@@ -58,13 +58,13 @@ apiClient.interceptors.response.use(
         }
         
         // Attempt to refresh token
-        const response = await axios.post<ApiResponse<{ tokens: { accessToken: string; refreshToken: string; expiresIn: number } }>>(
-          `${API_BASE_URL}${API_VERSION}/auth/token/refresh`,
+        const response = await axios.post<ApiResponse<{ accessToken: string; refreshToken: string }>>( 
+          `${API_BASE_URL}${API_VERSION}/auth/refresh`,
           { refreshToken }
         );
         
         if (response.data.success) {
-          const { accessToken, refreshToken: newRefreshToken } = response.data.data.tokens;
+          const { accessToken, refreshToken: newRefreshToken } = response.data.data;
           
           // Update tokens in store
           useAuthStore.getState().setTokens(accessToken, newRefreshToken);

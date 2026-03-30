@@ -1,38 +1,39 @@
 /**
- * Book Ride Page
- * Allows customers to book a driver for their vehicle
+ * Book Ride Page — Premium multi-step booking with animations
  */
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MapPin,
-  Car,
-  Navigation,
-  Search,
-  Loader2,
-  ArrowRight,
-  Home,
-  Briefcase,
+  MapPin, Car, Navigation, Search, Loader2, ArrowRight,
+  ArrowLeft, Home, Briefcase, Clock, IndianRupee,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { useAuthStore, useCustomerStore } from '@/store';
 import { useTrip, useLocation } from '@/hooks';
 import { MapContainer } from '@/components/maps';
 import { formatCurrency, formatDistance, formatDuration } from '@/utils/formatters';
+import { MovingBorder } from '@/components/aceternity/moving-border';
 import type { Vehicle, GeoLocation } from '@/types';
 
-// Mock fare estimation
-const estimateFare = (distanceKm: number): { fare: number; duration: number; distance: number } => {
+const estimateFare = (distanceKm: number) => {
   const baseFare = 50;
   const perKmRate = 15;
   const fare = baseFare + distanceKm * perKmRate;
-  const duration = Math.ceil(distanceKm * 2.5); // Approx 2.5 min per km
+  const duration = Math.ceil(distanceKm * 2.5);
   return { fare: Math.round(fare), duration, distance: distanceKm };
+};
+
+const steps = ['pickup', 'drop', 'vehicle', 'confirm'] as const;
+type Step = typeof steps[number];
+
+const slideVariants = {
+  enter: (direction: number) => ({ x: direction > 0 ? 200 : -200, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({ x: direction < 0 ? 200 : -200, opacity: 0 }),
 };
 
 export const BookRidePage = () => {
@@ -42,294 +43,54 @@ export const BookRidePage = () => {
   const { createTrip, isLoading } = useTrip();
   const { location, getCurrentPosition } = useLocation();
 
-  const [step, setStep] = useState<'pickup' | 'drop' | 'vehicle' | 'confirm'>('pickup');
+  const [step, setStep] = useState<Step>('pickup');
+  const [direction, setDirection] = useState(1);
   const [pickupLocation, setPickupLocation] = useState<GeoLocation | null>(null);
   const [dropLocation, setDropLocation] = useState<GeoLocation | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(defaultVehicle);
   const [fareEstimate, setFareEstimate] = useState<{ fare: number; duration: number; distance: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Get current location on mount
-  useEffect(() => {
-    getCurrentPosition();
-  }, [getCurrentPosition]);
+  useEffect(() => { getCurrentPosition(); }, [getCurrentPosition]);
 
-  // Set pickup to current location
   useEffect(() => {
     if (location && !pickupLocation) {
-      setPickupLocation({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        address: 'Current Location',
-      });
+      setPickupLocation({ latitude: location.latitude, longitude: location.longitude, address: 'Current Location' });
     }
   }, [location, pickupLocation]);
 
-  // Calculate fare when both locations are set
   useEffect(() => {
     if (pickupLocation && dropLocation) {
-      // Calculate distance (mock calculation)
-      const distance = Math.random() * 15 + 5; // Random distance between 5-20 km
-      const estimate = estimateFare(distance);
-      setFareEstimate(estimate);
+      const distance = Math.random() * 15 + 5;
+      setFareEstimate(estimateFare(distance));
     }
   }, [pickupLocation, dropLocation]);
 
-  const handleLocationSelect = (type: 'pickup' | 'drop', location: GeoLocation) => {
-    if (type === 'pickup') {
-      setPickupLocation(location);
-      setStep('drop');
-    } else {
-      setDropLocation(location);
-      setStep('vehicle');
-    }
+  const goTo = (newStep: Step) => {
+    const dir = steps.indexOf(newStep) > steps.indexOf(step) ? 1 : -1;
+    setDirection(dir);
+    setStep(newStep);
+  };
+
+  const handleLocationSelect = (type: 'pickup' | 'drop', loc: GeoLocation) => {
+    if (type === 'pickup') { setPickupLocation(loc); goTo('drop'); }
+    else { setDropLocation(loc); goTo('vehicle'); }
   };
 
   const handleBookRide = async () => {
     if (!pickupLocation || !dropLocation || !selectedVehicle || !user) return;
-
     const trip = await createTrip({
-      customerId: user.id,
-      vehicleId: selectedVehicle.id,
-      pickupLat: pickupLocation.latitude,
-      pickupLng: pickupLocation.longitude,
-      pickupAddress: pickupLocation.address,
-      pickupCity: pickupLocation.city,
-      dropLat: dropLocation.latitude,
-      dropLng: dropLocation.longitude,
-      dropAddress: dropLocation.address,
-      dropCity: dropLocation.city,
+      customerId: user.id, vehicleId: selectedVehicle.id,
+      pickupLat: pickupLocation.latitude, pickupLng: pickupLocation.longitude,
+      pickupAddress: pickupLocation.address, pickupCity: pickupLocation.city,
+      dropLat: dropLocation.latitude, dropLng: dropLocation.longitude,
+      dropAddress: dropLocation.address, dropCity: dropLocation.city,
       estimatedFare: fareEstimate?.fare,
     });
-
-    if (trip) {
-      navigate(`/customer/trips/${trip.id}`);
-    }
+    if (trip) navigate(`/customer/trips/${trip.id}`);
   };
 
-  const renderLocationSelector = (type: 'pickup' | 'drop') => (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder={`Search ${type === 'pickup' ? 'pickup' : 'drop'} location`}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Current Location */}
-      {type === 'pickup' && location && (
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-3"
-          onClick={() =>
-            handleLocationSelect(type, {
-              latitude: location.latitude,
-              longitude: location.longitude,
-              address: 'Current Location',
-            })
-          }
-        >
-          <Navigation className="w-5 h-5 text-primary" />
-          <div className="text-left">
-            <p className="font-medium">Current Location</p>
-            <p className="text-sm text-muted-foreground">Use my current location</p>
-          </div>
-        </Button>
-      )}
-
-      {/* Saved Locations */}
-      {savedLocations.length > 0 && (
-        <>
-          <Separator />
-          <p className="text-sm font-medium text-muted-foreground">Saved Locations</p>
-          <div className="space-y-2">
-            {savedLocations.map((savedLoc) => (
-              <Button
-                key={savedLoc.id}
-                variant="outline"
-                className="w-full justify-start gap-3"
-                onClick={() => handleLocationSelect(type, savedLoc.location)}
-              >
-                {savedLoc.type === 'HOME' ? (
-                  <Home className="w-5 h-5 text-green-500" />
-                ) : savedLoc.type === 'WORK' ? (
-                  <Briefcase className="w-5 h-5 text-blue-500" />
-                ) : (
-                  <MapPin className="w-5 h-5 text-gray-500" />
-                )}
-                <div className="text-left">
-                  <p className="font-medium">{savedLoc.name}</p>
-                  <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                    {savedLoc.location.address}
-                  </p>
-                </div>
-              </Button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Map Selection */}
-      <Separator />
-      <p className="text-sm font-medium text-muted-foreground">Select on Map</p>
-      <MapContainer
-        userLocation={location}
-        height="200px"
-        onMapClick={(lat, lng) =>
-          handleLocationSelect(type, {
-            latitude: lat,
-            longitude: lng,
-            address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-          })
-        }
-      />
-    </div>
-  );
-
-  const renderVehicleSelector = () => (
-    <div className="space-y-4">
-      <p className="text-sm font-medium text-muted-foreground">Select Vehicle</p>
-      <div className="space-y-3">
-        {vehicles.map((vehicle) => (
-          <button
-            key={vehicle.id}
-            onClick={() => {
-              setSelectedVehicle(vehicle);
-              setStep('confirm');
-            }}
-            className={`w-full p-4 rounded-xl border-2 transition-all ${
-              selectedVehicle?.id === vehicle.id
-                ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                <Car className="w-6 h-6" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="font-medium">
-                  {vehicle.make} {vehicle.model}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {vehicle.color} • {vehicle.registrationNumber}
-                </p>
-              </div>
-              {vehicle.isDefault && (
-                <Badge variant="secondary">Default</Badge>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => navigate('/customer/vehicles/add')}
-      >
-        + Add New Vehicle
-      </Button>
-    </div>
-  );
-
-  const renderConfirmation = () => (
-    <div className="space-y-6">
-      {/* Trip Summary */}
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5" />
-            <div>
-              <p className="font-medium">Pickup</p>
-              <p className="text-sm text-muted-foreground">
-                {pickupLocation?.address}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5" />
-            <div>
-              <p className="font-medium">Drop</p>
-              <p className="text-sm text-muted-foreground">
-                {dropLocation?.address}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Vehicle Info */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-              <Car className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="font-medium">
-                {selectedVehicle?.make} {selectedVehicle?.model}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {selectedVehicle?.color} • {selectedVehicle?.registrationNumber}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Fare Estimate */}
-      {fareEstimate && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2">
-                <Navigation className="w-4 h-4" />
-                Distance
-              </span>
-              <span>{formatDistance(fareEstimate.distance)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground flex items-center gap-2">
-                Distance
-              </span>
-              <span>{formatDuration(fareEstimate.duration)}</span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Estimated Fare</span>
-              <span className="text-xl font-bold">
-                {formatCurrency(fareEstimate.fare)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Book Button */}
-      <Button
-        size="lg"
-        className="w-full"
-        onClick={handleBookRide}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Booking...
-          </>
-        ) : (
-          <>
-            Book Now
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </>
-        )}
-      </Button>
-    </div>
-  );
+  const stepIndex = steps.indexOf(step);
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -338,44 +99,249 @@ export const BookRidePage = () => {
         <Button
           variant="ghost"
           size="icon"
+          className="rounded-full glass"
           onClick={() => {
             if (step === 'pickup') navigate('/customer/dashboard');
-            else if (step === 'drop') setStep('pickup');
-            else if (step === 'vehicle') setStep('drop');
-            else setStep('vehicle');
+            else goTo(steps[stepIndex - 1]);
           }}
         >
-          <ArrowRight className="w-5 h-5 rotate-180" />
+          <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h1 className="text-xl font-bold">
-          {step === 'pickup' && 'Select Pickup'}
-          {step === 'drop' && 'Select Drop'}
-          {step === 'vehicle' && 'Select Vehicle'}
-          {step === 'confirm' && 'Confirm Booking'}
-        </h1>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">
+            {step === 'pickup' && 'Select Pickup'}
+            {step === 'drop' && 'Select Drop-off'}
+            {step === 'vehicle' && 'Select Vehicle'}
+            {step === 'confirm' && 'Confirm Booking'}
+          </h1>
+          <p className="text-xs text-muted-foreground">Step {stepIndex + 1} of 4</p>
+        </div>
       </div>
 
-      {/* Progress Indicator */}
-      <div className="flex gap-2">
-        {['pickup', 'drop', 'vehicle', 'confirm'].map((s, i) => (
-          <div
+      {/* Progress Bar */}
+      <div className="flex gap-1.5">
+        {steps.map((s, i) => (
+          <motion.div
             key={s}
-            className={`flex-1 h-1 rounded-full ${
-              step === s
-                ? 'bg-primary'
-                : ['pickup', 'drop', 'vehicle', 'confirm'].indexOf(step) > i
-                ? 'bg-primary/50'
-                : 'bg-muted'
-            }`}
-          />
+            className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/5"
+          >
+            <motion.div
+              className="h-full rounded-full gradient-primary"
+              initial={false}
+              animate={{ width: stepIndex >= i ? '100%' : '0%' }}
+              transition={{ duration: 0.3 }}
+            />
+          </motion.div>
         ))}
       </div>
 
-      {/* Content */}
-      {step === 'pickup' && renderLocationSelector('pickup')}
-      {step === 'drop' && renderLocationSelector('drop')}
-      {step === 'vehicle' && renderVehicleSelector()}
-      {step === 'confirm' && renderConfirmation()}
+      {/* Step Content */}
+      <AnimatePresence mode="wait" custom={direction}>
+        <motion.div
+          key={step}
+          custom={direction}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ type: "tween", duration: 0.25 }}
+        >
+          {/* Pickup / Drop Step */}
+          {(step === 'pickup' || step === 'drop') && (
+            <div className="space-y-4">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                  placeholder={`Search ${step === 'pickup' ? 'pickup' : 'drop-off'} location`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-12 bg-white/5 border-white/10 focus:border-primary/50"
+                />
+              </div>
+
+              {step === 'pickup' && location && (
+                <button
+                  onClick={() => handleLocationSelect('pickup', {
+                    latitude: location.latitude, longitude: location.longitude, address: 'Current Location'
+                  })}
+                  className="w-full glass-card p-4 flex items-center gap-3 hover:border-primary/30 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <Navigation className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-sm">Current Location</p>
+                    <p className="text-xs text-muted-foreground">Use GPS location</p>
+                  </div>
+                </button>
+              )}
+
+              {savedLocations.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Saved Places</p>
+                  {savedLocations.map((savedLoc) => (
+                    <button
+                      key={savedLoc.id}
+                      onClick={() => handleLocationSelect(step, savedLoc.location)}
+                      className="w-full glass-card p-3 flex items-center gap-3 hover:border-white/20 transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center">
+                        {savedLoc.type === 'HOME' ? <Home className="w-4 h-4 text-green-400" />
+                          : savedLoc.type === 'WORK' ? <Briefcase className="w-4 h-4 text-blue-400" />
+                          : <MapPin className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                      <div className="text-left flex-1 min-w-0">
+                        <p className="font-medium text-sm">{savedLoc.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{savedLoc.location.address}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Select on map</p>
+                <div className="rounded-xl overflow-hidden border border-white/10">
+                  <MapContainer
+                    userLocation={location}
+                    height="200px"
+                    onMapClick={(lat, lng) => handleLocationSelect(step, {
+                      latitude: lat, longitude: lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+                    })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Vehicle Step */}
+          {step === 'vehicle' && (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Your Vehicles</p>
+              {vehicles.map((vehicle) => (
+                <button
+                  key={vehicle.id}
+                  onClick={() => { setSelectedVehicle(vehicle); goTo('confirm'); }}
+                  className={`w-full glass-card p-4 flex items-center gap-4 transition-all ${
+                    selectedVehicle?.id === vehicle.id
+                      ? 'border-primary/50 shadow-glow/20'
+                      : 'hover:border-white/20'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
+                    <Car className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium">{vehicle.make} {vehicle.model}</p>
+                    <p className="text-xs text-muted-foreground">{vehicle.color} • {vehicle.registrationNumber}</p>
+                  </div>
+                  {vehicle.isDefault && (
+                    <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Default</Badge>
+                  )}
+                </button>
+              ))}
+              <button
+                onClick={() => navigate('/customer/vehicles/add')}
+                className="w-full glass-card p-4 flex items-center gap-3 text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-dashed border-white/20">
+                  <span className="text-lg">+</span>
+                </div>
+                <span className="text-sm font-medium">Add New Vehicle</span>
+              </button>
+            </div>
+          )}
+
+          {/* Confirm Step */}
+          {step === 'confirm' && (
+            <div className="space-y-4">
+              {/* Route Card */}
+              <div className="glass-card p-5">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-3 h-3 rounded-full bg-green-400 mt-1.5 ring-4 ring-green-400/20" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Pickup</p>
+                      <p className="font-medium text-sm">{pickupLocation?.address}</p>
+                    </div>
+                  </div>
+                  <div className="ml-1.5 border-l border-dashed border-white/20 h-4" />
+                  <div className="flex items-start gap-3">
+                    <div className="w-3 h-3 rounded-full bg-primary mt-1.5 ring-4 ring-primary/20" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Drop-off</p>
+                      <p className="font-medium text-sm">{dropLocation?.address}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle Card */}
+              <div className="glass-card p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                  <Car className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{selectedVehicle?.make} {selectedVehicle?.model}</p>
+                  <p className="text-xs text-muted-foreground">{selectedVehicle?.color} • {selectedVehicle?.registrationNumber}</p>
+                </div>
+              </div>
+
+              {/* Fare Estimate */}
+              {fareEstimate && (
+                <div className="glass-card p-5 space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Navigation className="w-3.5 h-3.5" /> Distance
+                    </span>
+                    <span>{formatDistance(fareEstimate.distance)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5" /> Duration
+                    </span>
+                    <span>{formatDuration(fareEstimate.duration)}</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-3 flex items-center justify-between">
+                    <span className="font-medium flex items-center gap-2">
+                      <IndianRupee className="w-4 h-4" /> Estimated Fare
+                    </span>
+                    <span className="text-2xl font-bold gradient-text">
+                      {formatCurrency(fareEstimate.fare)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Book Button */}
+              <MovingBorder
+                as="div"
+                duration={3000}
+                containerClassName="w-full h-14 rounded-xl"
+                className="bg-background hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <button
+                  onClick={handleBookRide}
+                  disabled={isLoading}
+                  className="w-full h-full flex items-center justify-center gap-2 font-semibold text-foreground disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Finding a Driver...
+                    </>
+                  ) : (
+                    <>
+                      Book Now
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              </MovingBorder>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };

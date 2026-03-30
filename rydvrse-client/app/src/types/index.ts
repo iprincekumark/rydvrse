@@ -52,7 +52,8 @@ export interface AuthResponse {
 }
 
 export interface OtpRequest {
-  phoneNumber: string;
+  phone: string;       // format: +91XXXXXXXXXX
+  userType: 'CUSTOMER' | 'DRIVER' | 'ADMIN';
 }
 
 export interface OtpResponse {
@@ -62,8 +63,9 @@ export interface OtpResponse {
 }
 
 export interface VerifyOtpRequest {
-  phoneNumber: string;
+  phone: string;       // format: +91XXXXXXXXXX
   otp: string;
+  userType: 'CUSTOMER' | 'DRIVER' | 'ADMIN';
 }
 
 export interface RefreshTokenRequest {
