@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: rydvrse-backend
+  datasource:
+    url: ${RYDVRSE_DB_URL:jdbc:postgresql://localhost:5433/rydvrse}
+    username: ${RYDVRSE_DB_USERNAME:rydvrse}
+    password: ${RYDVRSE_DB_PASSWORD:rydvrse_secret}
+    hikari:
+      maximum-pool-size: ${RYDVRSE_DB_MAX_POOL_SIZE:20}
+      minimum-idle: ${RYDVRSE_DB_MIN_IDLE:5}
+      connection-timeout: 30000
+      idle-timeout: 600000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+        default_schema: public
+    open-in-view: false
+  flyway:
+    enabled: true
+    default-schema: public
+    locations: classpath:db/migration
+    schemas:
+      - iam
+      - master
+      - customer
+      - driver
+      - commercial
+      - booking
+      - trip
+      - finance
+      - support
+      - comms
+      - audit
+      - analytics
+  data:
+    redis:
+      host: ${RYDVRSE_REDIS_HOST:localhost}
+      port: ${RYDVRSE_REDIS_PORT:6379}
+      timeout: 3s
+      repositories:
+        enabled: false
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    deserialization:
+      fail-on-unknown-properties: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+springdoc:
+  api-docs:
+    path: /api/docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+
+rydvrse:
+  security:
+    jwt-secret: ${RYDVRSE_JWT_SECRET:change-me-change-me-change-me-change-me}
+    access-token-ttl-minutes: ${RYDVRSE_ACCESS_TOKEN_TTL_MINUTES:15}
+    refresh-token-ttl-days: ${RYDVRSE_REFRESH_TOKEN_TTL_DAYS:30}
+    bootstrap-admin-email: ${RYDVRSE_ADMIN_EMAIL:admin@rydvrse.local}
+    bootstrap-admin-password: ${RYDVRSE_ADMIN_PASSWORD:ChangeMe123!}
+  auth:
+    default-otp-code: ${RYDVRSE_DEFAULT_OTP_CODE:123456}
+    otp-expiry-minutes: ${RYDVRSE_OTP_EXPIRY_MINUTES:10}
+  pricing:
+    quote-expiry-minutes: ${RYDVRSE_QUOTE_EXPIRY_MINUTES:15}
+  payments:
+    sandbox-auto-capture: ${RYDVRSE_PAYMENTS_SANDBOX_AUTO_CAPTURE:true}
+    webhook-secret: ${RYDVRSE_PAYMENTS_WEBHOOK_SECRET:dev-payment-webhook-secret}
+  jobs:
+    enabled: ${RYDVRSE_JOBS_ENABLED:true}
+  tracking:
+    stale-threshold-seconds: ${RYDVRSE_TRACKING_STALE_SECONDS:60}

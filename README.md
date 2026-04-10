@@ -4,6 +4,8 @@ Rydvrse is a `scheduled-first private driver platform` for people who already ow
 
 This repository currently serves as the `product, architecture, operations, and execution design workspace` for the Rydvrse MVP.
 
+The production backend implementation now lives in [`rydvrse-server/`](./rydvrse-server).
+
 ## Table of Contents
 
 - [What Rydvrse Is](#what-rydvrse-is)
@@ -16,6 +18,7 @@ This repository currently serves as the `product, architecture, operations, and 
 - [Product Surfaces](#product-surfaces)
 - [Operating Model](#operating-model)
 - [Technology Direction](#technology-direction)
+- [Repository Layout](#repository-layout)
 - [Repository Status](#repository-status)
 - [Documentation Index](#documentation-index)
 - [Recommended Reading Order](#recommended-reading-order)
@@ -248,9 +251,20 @@ Core backend domains include:
 - support
 - admin and reporting
 
+## Repository Layout
+
+The repository is intentionally split into two layers:
+
+- `repo root`
+  Product, strategy, architecture, UX, pricing, ops, and delivery documents
+- [`rydvrse-server/`](./rydvrse-server)
+  Spring Boot backend source, Maven build, Docker assets, Flyway migrations, tests, and backend implementation guide
+
+Backend engineers should treat [`rydvrse-server/`](./rydvrse-server) as the service root for local development, CI, and packaging.
+
 ## Repository Status
 
-This repository is currently `documentation-first`.
+This repository is now `design-led with a working backend foundation`.
 
 At this stage, it contains the baseline documents needed to move confidently into implementation:
 
@@ -264,6 +278,7 @@ At this stage, it contains the baseline documents needed to move confidently int
 - infrastructure and release plan
 - ops SOP
 - implementation backlog
+- backend implementation guide and service source under [`rydvrse-server/`](./rydvrse-server)
 
 This means the project has crossed from vague brainstorming into `execution-ready planning`.
 
@@ -285,6 +300,7 @@ The following documents form the current source-of-truth set for the MVP:
 | [`Infrastructure_and_Delivery_Plan.md`](./Infrastructure_and_Delivery_Plan.md) | environments, CI/CD, migrations, secrets, logging, monitoring, backups, release plan | platform, engineering lead |
 | [`Ops_SOP.md`](./Ops_SOP.md) | driver onboarding SOP, rescue handling, refunds, incidents, support SLA, shift governance | ops, support, finance |
 | [`Implementation_Backlog.md`](./Implementation_Backlog.md) | milestones, epics, sprint sequencing, dependencies, and owners | founders, engineering, ops, QA |
+| [`rydvrse-server/Backend_Implementation_Guide.md`](./rydvrse-server/Backend_Implementation_Guide.md) | implemented backend modules, local run commands, environment variables, and verification notes | backend, platform, QA |
 
 ## Recommended Reading Order
 
@@ -309,6 +325,7 @@ Read in this order:
 3. [`API_Spec.md`](./API_Spec.md)
 4. [`Low_Level_Design.md`](./Low_Level_Design.md)
 5. [`Infrastructure_and_Delivery_Plan.md`](./Infrastructure_and_Delivery_Plan.md)
+6. [`rydvrse-server/Backend_Implementation_Guide.md`](./rydvrse-server/Backend_Implementation_Guide.md)
 
 ### If You Are a Mobile or Frontend Engineer
 
@@ -377,3 +394,9 @@ Recommended rules:
 - keep documentation and implementation aligned through milestone reviews
 
 If implementation starts next, the most practical artifact to derive from this repository is the sprint and ticket tracker based on [`Implementation_Backlog.md`](./Implementation_Backlog.md).
+
+For backend execution, enter the service directory first:
+
+```bash
+cd rydvrse-server
+```

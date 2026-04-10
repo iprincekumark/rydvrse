@@ -1,0 +1,11 @@
+target/
+rydvrse-server/target/
+.idea/
+.vscode/
+.DS_Store
+*.iml
+.env
+logs/
+rydvrse-server/logs/
+*.log
+.mvn/wrapper/maven-wrapper.jar
