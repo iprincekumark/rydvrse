@@ -1,0 +1,9 @@
+export type AppVariant = "customer" | "driver" | "dual";
+
+const appVariant = (process.env.EXPO_PUBLIC_APP_VARIANT ?? "dual") as AppVariant;
+
+export const env = {
+  apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:8084/api/v1",
+  useMocks: (process.env.EXPO_PUBLIC_USE_MOCKS ?? "true") === "true",
+  appVariant
+};

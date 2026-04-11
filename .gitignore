@@ -9,3 +9,10 @@ logs/
 rydvrse-server/logs/
 *.log
 .mvn/wrapper/maven-wrapper.jar
+rydvrse-mobile/node_modules/
+rydvrse-mobile/.expo/
+rydvrse-mobile/.expo-shared/
+rydvrse-mobile/dist/
+rydvrse-mobile/dist-export*/
+rydvrse-mobile/web-build/
+rydvrse-mobile/coverage/

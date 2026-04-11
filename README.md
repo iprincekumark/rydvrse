@@ -2,9 +2,10 @@
 
 Rydvrse is a `scheduled-first private driver platform` for people who already own cars and want a verified driver to operate their vehicle with clear pricing, stronger trip control, and reliable operational support.
 
-This repository currently serves as the `product, architecture, operations, and execution design workspace` for the Rydvrse MVP.
+This repository currently serves as the `product, architecture, operations, execution design, backend, and mobile workspace` for the Rydvrse MVP.
 
 The production backend implementation now lives in [`rydvrse-server/`](./rydvrse-server).
+The React Native mobile implementation now lives in [`rydvrse-mobile/`](./rydvrse-mobile).
 
 ## Table of Contents
 
@@ -258,6 +259,9 @@ The repository is intentionally split into two layers:
 - `repo root`
   Product, strategy, architecture, UX, pricing, ops, and delivery documents
 - [`rydvrse-server/`](./rydvrse-server)
+  Spring Boot backend implementation
+- [`rydvrse-mobile/`](./rydvrse-mobile)
+  React Native customer and driver mobile implementation
   Spring Boot backend source, Maven build, Docker assets, Flyway migrations, tests, and backend implementation guide
 
 Backend engineers should treat [`rydvrse-server/`](./rydvrse-server) as the service root for local development, CI, and packaging.

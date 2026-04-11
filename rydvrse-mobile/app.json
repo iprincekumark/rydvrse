@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Rydvrse",
+    "slug": "rydvrse-mobile",
+    "scheme": "rydvrse",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0C3B3B"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rydvrse.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0C3B3B"
+      },
+      "package": "com.rydvrse.mobile"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
