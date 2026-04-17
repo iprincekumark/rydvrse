@@ -5,6 +5,8 @@ rydvrse-server/target/
 .DS_Store
 *.iml
 .env
+.env.local
+.env.*.local
 logs/
 rydvrse-server/logs/
 *.log

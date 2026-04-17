@@ -393,9 +393,9 @@ Target proportions:
 | Permission denied | Show manual pickup search as primary path |
 | No internet | Preserve last known city/saved locations; disable quote CTA |
 | Active booking exists | Show compact active booking pill over the map and continue trip CTA |
-| Upcoming booking exists | Show small upcoming booking card below booking controls |
-| Quote loading | CTA becomes loading, fare preview skeleton appears |
-| Quote ready | Fare preview row appears with total and "Review fare" CTA |
+| Upcoming booking exists | Do not expand Home; keep history inside Bookings tab or show only a tiny pill later |
+| Quote loading | CTA becomes loading |
+| Quote ready | Navigate to compact fare review |
 | Quote expired | Warning banner with refresh quote CTA |
 | Non-serviceable route | Inline error near location fields with edit CTA |
 
@@ -412,9 +412,10 @@ Default collapsed sheet:
 - schedule row:
   - Now
   - Later
-- compact route row: distance and traffic ETA
 - primary CTA:
   - `Get fare`
+
+Do not show route distance, traffic ETA, driver pickup distance, or internal map calculation fields on the Home screen. These values are calculated internally and passed to pricing.
 
 ## 6.5 Booking Sheet Expanded Search Mode
 
@@ -439,6 +440,7 @@ Required controls:
 - route line after both locations are selected
 - drag-to-adjust pin mode
 - current city badge
+- do not show distance/ETA badges on the map preview
 
 Optional later:
 
@@ -464,20 +466,56 @@ The app should support:
 - show selected location title/address
 - compute distance/time estimate
 - pass distance/time/pickup/drop into quote API
+- keep route distance/time hidden from customer-facing Home and booking detail entry
 
 ## 7.2 Recommended Libraries
 
 Use Expo-compatible libraries:
 
 - `expo-location` for location permission and GPS
-- `react-native-maps` for native map rendering
-- backend/proxy or provider SDK for autocomplete/geocoding
+- `react-native-maps` for native map rendering when staying Expo-compatible
+- Ola Maps REST APIs for geocoding/directions/distance estimate while in Expo-compatible mode
+- Ola Maps Android SDK only inside Android native/dev-build path, because it requires native SDK setup and cannot be dropped into Expo Go safely
+- backend/proxy should become the production path for provider calls so API keys are not exposed in public app bundles
 - `@gorhom/bottom-sheet` is already available and should be used for sheet patterns
 
 Important:
 
 - Keep `MapPlaceholderCard` as a fallback component for web/mock/offline environments.
 - Do not block the entire app if maps fail to load.
+- API keys must live in ignored env files such as `rydvrse-mobile/.env.local`; only placeholders belong in `.env.example`.
+
+## 7.2.1 Ola Maps Integration Rules
+
+Reference docs:
+
+- Android SDK: `https://maps.olakrutrim.com/docs/sdks/map-sdks/android`
+- Directions API: `https://maps.olakrutrim.com/docs/routing-apis/directions-api`
+- Distance Matrix API: `https://maps.olakrutrim.com/docs/routing-apis/distance-matrix-api`
+- Geocoding API: `https://maps.olakrutrim.com/docs/geocoding/geocoding-api`
+
+Current Expo-safe implementation:
+
+- read `EXPO_PUBLIC_OLA_MAPS_PROJECT_ID` and `EXPO_PUBLIC_OLA_MAPS_API_KEY` from `.env.local`
+- call map estimation through a single route-estimator service
+- use Ola Directions where available
+- use Ola Geocoding where labels are not locally resolvable
+- fallback to Bengaluru-aware local estimates if API/network fails
+- update hidden quote fields:
+  - `distanceKm`
+  - `predictedDriveMinutes`
+  - `driverPickupDistanceKm`
+  - `driverPickupEtaMinutes`
+  - `durationLabel`
+
+Native Android SDK future path:
+
+- create a custom native module or config plugin
+- add Ola SDK dependency to Android native project
+- initialize map view in native Android container
+- expose markers/current location/polyline controls to React Native
+- use dev build/EAS build, not Expo Go
+- keep the same route-estimator service contract so pricing does not change
 
 ## 7.3 Location Data Model
 
@@ -616,10 +654,13 @@ Required inputs:
 - pickup
 - drop
 - schedule
+- car details
+
+Internal calculated inputs:
+
 - rounded distance
 - predicted drive minutes
 - driver pickup estimate when available
-- car details
 
 Quote must show:
 
@@ -640,10 +681,13 @@ Required inputs:
 - destination/turnaround point
 - return expectation
 - schedule
+- car details
+
+Internal calculated inputs:
+
 - expected total duration
 - rounded total distance
 - planned waiting time if known
-- car details
 
 Quote must show:
 

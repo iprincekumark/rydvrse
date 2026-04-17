@@ -61,7 +61,7 @@ export function PrimaryButton({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",

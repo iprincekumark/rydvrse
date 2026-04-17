@@ -24,6 +24,7 @@ import { supportCategories } from "@/constants/support";
 import { CustomerServiceType, serviceTypeOptions } from "@/constants/serviceTypes";
 import { authApi } from "@/services/api/auth";
 import { customerApi } from "@/services/api/customer";
+import { calculateRouteEstimate } from "@/services/maps/routeEstimator";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { markProfileComplete, setActiveBooking, setBookings, setQuote, updateBookingForm } from "@/store/customerSlice";
 import { hydrateSession, logout } from "@/store/sessionSlice";
@@ -67,6 +68,31 @@ function scheduleIso(kind: "now" | "thirty" | "hour") {
     return new Date(now.getTime() + 30 * 60 * 1000).toISOString();
   }
   return new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+}
+
+async function refreshRouteEstimate(
+  dispatch: ReturnType<typeof useAppDispatch>,
+  bookingForm: {
+    pickup: string;
+    drop: string;
+    serviceType: CustomerServiceType;
+  },
+) {
+  const estimate = await calculateRouteEstimate({
+    pickupLabel: bookingForm.pickup,
+    dropLabel: bookingForm.drop,
+    serviceType: bookingForm.serviceType,
+  });
+
+  dispatch(
+    updateBookingForm({
+      distanceKm: String(estimate.roundedDistanceKm),
+      predictedDriveMinutes: String(estimate.predictedDriveMinutes),
+      driverPickupDistanceKm: String(estimate.driverPickupDistanceKm),
+      driverPickupEtaMinutes: String(estimate.driverPickupEtaMinutes),
+      durationLabel: `${estimate.predictedDriveMinutes} mins`,
+    }),
+  );
 }
 
 function resolveStatusTone(status: string): "info" | "success" | "warning" | "neutral" {
@@ -359,35 +385,47 @@ export function CustomerProfileSetupScreen() {
 export function CustomerHomeScreen() {
   const navigation = useNavigation<any>();
   const { width, height } = useWindowDimensions();
-  const accessToken = useAppSelector((state) => state.session.accessToken);
-  const bookings = useAppSelector((state) => state.customer.bookings);
   const bookingForm = useAppSelector((state) => state.customer.bookingForm);
   const dispatch = useAppDispatch();
-  const [loading, setLoading] = useState(true);
   const isWide = width >= 720;
   const mapHeight = isWide ? Math.max(520, height - 120) : Math.max(230, Math.min(310, height * 0.36));
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      if (!accessToken) {
-        return;
-      }
 
-      const response = await customerApi.home(accessToken);
+    const estimateRoute = async () => {
+      const estimate = await calculateRouteEstimate({
+        pickupLabel: bookingForm.pickup,
+        dropLabel: bookingForm.drop,
+        serviceType: bookingForm.serviceType,
+      });
+
       if (!active) {
         return;
       }
-      dispatch(setBookings(response.data.upcoming_bookings ?? []));
-      setLoading(false);
+
+      dispatch(
+        updateBookingForm({
+          distanceKm: String(estimate.roundedDistanceKm),
+          predictedDriveMinutes: String(estimate.predictedDriveMinutes),
+          driverPickupDistanceKm: String(estimate.driverPickupDistanceKm),
+          driverPickupEtaMinutes: String(estimate.driverPickupEtaMinutes),
+          durationLabel: `${estimate.predictedDriveMinutes} mins`,
+        }),
+      );
     };
-    void load();
+
+    void estimateRoute();
+
     return () => {
       active = false;
     };
-  }, [accessToken, dispatch]);
+  }, [bookingForm.drop, bookingForm.pickup, bookingForm.serviceType, dispatch]);
 
-  const nextBooking = bookings[0];
+  const handleGetFare = async () => {
+    await refreshRouteEstimate(dispatch, bookingForm);
+    navigation.navigate("CustomerQuote");
+  };
 
   return (
     <Screen padded={false} scrollable={false} variant="map" backgroundColor={semantic.bg.app}>
@@ -396,8 +434,6 @@ export function CustomerHomeScreen() {
           <RydvrseMapPreview
             pickupLabel={bookingForm.pickup}
             dropLabel={bookingForm.drop}
-            distanceKm={bookingForm.distanceKm}
-            etaMinutes={bookingForm.predictedDriveMinutes}
             onUseCurrentLocation={() => dispatch(updateBookingForm({ pickup: "Current location • Bengaluru" }))}
             onOpenSearch={() => navigation.navigate("CustomerServiceSetup")}
             onRecenter={() => dispatch(updateBookingForm({ pickup: bookingForm.pickup || "Koramangala 4th Block" }))}
@@ -410,43 +446,12 @@ export function CustomerHomeScreen() {
             pickup={bookingForm.pickup}
             drop={bookingForm.drop}
             scheduleLabel={formatCompactTime(bookingForm.scheduleAt)}
-            distanceKm={bookingForm.distanceKm}
-            etaMinutes={bookingForm.predictedDriveMinutes}
             onTripTypeChange={(serviceType) => dispatch(updateBookingForm({ serviceType }))}
             onQuickSchedule={(kind) => dispatch(updateBookingForm({ scheduleAt: scheduleIso(kind) }))}
             onOpenLocationSearch={() => navigation.navigate("CustomerServiceSetup")}
             onOpenDetails={() => navigation.navigate("CustomerServiceSetup")}
-            onGetFare={() => navigation.navigate("CustomerQuote")}
+            onGetFare={handleGetFare}
           />
-
-          {loading || nextBooking ? (
-            <View style={styles.homeBelowSheet}>
-              {loading ? (
-                <SectionCard>
-                  <Skeleton height={18} width="45%" />
-                  <View style={styles.stackSm}>
-                    <Skeleton height={46} />
-                    <Skeleton height={46} width="82%" />
-                  </View>
-                </SectionCard>
-              ) : nextBooking ? (
-                <View style={styles.stackSm}>
-                  <SectionTitle label="Upcoming booking" />
-                  <BookingCard
-                    title={displayServiceType(nextBooking.service_type)}
-                    subtitle={`${nextBooking.pickup_label} • ${formatCompactTime(nextBooking.schedule_at)}`}
-                    amount={formatCurrency(nextBooking.fare_amount_paise)}
-                    serviceType={nextBooking.service_type}
-                    status={nextBooking.status}
-                    onPress={() => {
-                      dispatch(setActiveBooking(nextBooking.booking_id));
-                      navigation.navigate("CustomerBookingDetail");
-                    }}
-                  />
-                </View>
-              ) : null}
-            </View>
-          ) : null}
         </View>
       </View>
     </Screen>
@@ -457,11 +462,51 @@ export function CustomerServiceSetupScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const bookingForm = useAppSelector((state) => state.customer.bookingForm);
+  const [estimating, setEstimating] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const estimateRoute = async () => {
+      const estimate = await calculateRouteEstimate({
+        pickupLabel: bookingForm.pickup,
+        dropLabel: bookingForm.drop,
+        serviceType: bookingForm.serviceType,
+      });
+
+      if (!active) {
+        return;
+      }
+
+      dispatch(
+        updateBookingForm({
+          distanceKm: String(estimate.roundedDistanceKm),
+          predictedDriveMinutes: String(estimate.predictedDriveMinutes),
+          driverPickupDistanceKm: String(estimate.driverPickupDistanceKm),
+          driverPickupEtaMinutes: String(estimate.driverPickupEtaMinutes),
+          durationLabel: `${estimate.predictedDriveMinutes} mins`,
+        }),
+      );
+    };
+
+    void estimateRoute();
+
+    return () => {
+      active = false;
+    };
+  }, [bookingForm.drop, bookingForm.pickup, bookingForm.serviceType, dispatch]);
+
+  const handleGetFare = async () => {
+    setEstimating(true);
+    await refreshRouteEstimate(dispatch, bookingForm);
+    setEstimating(false);
+    navigation.navigate("CustomerQuote");
+  };
 
   return (
-    <Screen>
-      <CompactHeader title="Trip details" subtitle="Edit only what matters." onBack={() => navigation.goBack()} />
-      <View style={styles.stackSm}>
+    <Screen backgroundColor="rgba(16, 19, 18, 0.10)">
+      <View style={styles.detailsSheet}>
+        <CompactHeader title="Trip details" subtitle="Add trip info." onBack={() => navigation.goBack()} />
         <View style={styles.tripTypeGrid}>
           {serviceTypeOptions.map((option) => (
             <ChoiceCard
@@ -478,16 +523,6 @@ export function CustomerServiceSetupScreen() {
         <TextField label="Pickup location" value={bookingForm.pickup} onChangeText={(value) => dispatch(updateBookingForm({ pickup: value }))} icon="pin" />
         <TextField label="Drop location" value={bookingForm.drop} onChangeText={(value) => dispatch(updateBookingForm({ drop: value }))} icon="route" />
         <TextField label="Scheduled time" value={bookingForm.scheduleAt} onChangeText={(value) => dispatch(updateBookingForm({ scheduleAt: value }))} icon="calendar" />
-        <TextField label="Duration" value={bookingForm.durationLabel} onChangeText={(value) => dispatch(updateBookingForm({ durationLabel: value }))} icon="clock" />
-        <SectionCard>
-          <View style={styles.stackSm}>
-            <SectionTitle label="Route" />
-            <TextField label="Distance km" value={bookingForm.distanceKm} onChangeText={(value) => dispatch(updateBookingForm({ distanceKm: value }))} icon="route" keyboardType="numeric" />
-            <TextField label="Traffic ETA min" value={bookingForm.predictedDriveMinutes} onChangeText={(value) => dispatch(updateBookingForm({ predictedDriveMinutes: value }))} icon="clock" keyboardType="numeric" />
-            <TextField label="Driver pickup distance km" value={bookingForm.driverPickupDistanceKm} onChangeText={(value) => dispatch(updateBookingForm({ driverPickupDistanceKm: value }))} icon="pin" keyboardType="numeric" />
-            <TextField label="Driver pickup ETA min" value={bookingForm.driverPickupEtaMinutes} onChangeText={(value) => dispatch(updateBookingForm({ driverPickupEtaMinutes: value }))} icon="eta" keyboardType="numeric" />
-          </View>
-        </SectionCard>
         <SectionCard>
           <View style={styles.stackSm}>
             <SectionTitle label="Car details" />
@@ -498,7 +533,7 @@ export function CustomerServiceSetupScreen() {
           </View>
         </SectionCard>
         <TextField label="Notes" value={bookingForm.instructions} onChangeText={(value) => dispatch(updateBookingForm({ instructions: value }))} icon="document" multiline />
-        <BottomActionBar primaryLabel="Get fare" secondaryLabel="Back" onPrimaryPress={() => navigation.navigate("CustomerQuote")} onSecondaryPress={() => navigation.goBack()} primaryIcon="spark" secondaryIcon="arrowLeft" />
+        <BottomActionBar primaryLabel={estimating ? "Calculating..." : "Get fare"} secondaryLabel="Back" onPrimaryPress={handleGetFare} onSecondaryPress={() => navigation.goBack()} primaryDisabled={estimating} primaryIcon="spark" secondaryIcon="arrowLeft" />
       </View>
     </Screen>
   );
@@ -589,31 +624,6 @@ export function CustomerQuoteScreen() {
       <HeaderBlock eyebrow="Quote ready" title="Review fare." subtitle={`Expires ${formatCompactTime(quote.expires_at)}.`} visualVariant="trust" />
       <View style={styles.stackMd}>
         <QuoteSummaryStrip serviceType={quote.service_type} amount={formatCurrency(quote.fare_summary.amount_paise)} />
-        {quote.pricing_assumptions ? (
-          <View style={styles.metricStrip}>
-            <View style={styles.metricCard}>
-              <View style={styles.metricIconWrap}>
-                <AppIcon name="route" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
-              </View>
-              <AppText variant="caption">Distance</AppText>
-              <AppText variant="bodyStrong">{quote.pricing_assumptions.rounded_distance_km ?? "--"} km</AppText>
-            </View>
-            <View style={styles.metricCard}>
-              <View style={styles.metricIconWrap}>
-                <AppIcon name="clock" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
-              </View>
-              <AppText variant="caption">Traffic ETA</AppText>
-              <AppText variant="bodyStrong">{quote.pricing_assumptions.predicted_drive_minutes ?? "--"} min</AppText>
-            </View>
-            <View style={styles.metricCard}>
-              <View style={styles.metricIconWrap}>
-                <AppIcon name="eta" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
-              </View>
-              <AppText variant="caption">Driver arrival</AppText>
-              <AppText variant="bodyStrong">{quote.pricing_assumptions.driver_pickup_eta_minutes ?? "--"} min</AppText>
-            </View>
-          </View>
-        ) : null}
         <SectionCard>
           <View style={styles.stackSm}>
             <KeyValueRow label="Service" value={displayServiceType(quote.service_type)} />
@@ -627,7 +637,7 @@ export function CustomerQuoteScreen() {
             />
           </View>
         </SectionCard>
-        <StatusBanner tone="success" title="Bengaluru optimized pricing" message={quote.savings_summary?.message ?? quote.assignment_note} />
+        <StatusBanner tone="success" title="Bengaluru optimized pricing" message="Fare uses map route, pickup access, and current traffic signals internally." />
         <StatusBanner tone="info" title="Fair payout" message="Pickup access is included in the fare." />
         <StatusBanner tone="info" title="Cancellation summary" message={quote.cancellation_summary} />
         <BottomActionBar primaryLabel="Continue to review" secondaryLabel="Edit trip" onPrimaryPress={() => navigation.navigate("CustomerBookingReview")} onSecondaryPress={() => navigation.goBack()} primaryIcon="check" secondaryIcon="route" />
@@ -672,8 +682,6 @@ export function CustomerBookingReviewScreen() {
             <KeyValueRow label="Pickup" value={bookingForm.pickup} />
             <KeyValueRow label="Drop" value={bookingForm.drop} />
             <KeyValueRow label="Schedule" value={formatCompactTime(bookingForm.scheduleAt)} />
-            <KeyValueRow label="Duration" value={bookingForm.durationLabel} />
-            <KeyValueRow label="Distance and traffic ETA" value={`${bookingForm.distanceKm} km / ${bookingForm.predictedDriveMinutes} min`} />
             <KeyValueRow label="Car" value={`${bookingForm.carBrandModel} (${bookingForm.transmissionType})`} />
             <KeyValueRow label="Quote total" value={formatCurrency(quote?.fare_summary.amount_paise ?? 0)} />
           </View>
@@ -1067,11 +1075,13 @@ const styles = StyleSheet.create({
     marginTop: 0,
     alignSelf: "center",
   },
-  homeBelowSheet: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
+  detailsSheet: {
+    backgroundColor: semantic.bg.surface,
+    borderRadius: 28,
+    padding: spacing.md,
     gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
   },
   compactHeader: {
     flexDirection: "row",
@@ -1094,6 +1104,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   tripTypeGrid: {
+    flexDirection: "row",
     gap: spacing.sm,
   },
   bookingRow: {

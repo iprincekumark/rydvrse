@@ -12,8 +12,6 @@ type BookingHomeSheetProps = {
   pickup: string;
   drop: string;
   scheduleLabel: string;
-  distanceKm: string;
-  etaMinutes: string;
   onTripTypeChange: (serviceType: CustomerServiceType) => void;
   onQuickSchedule: (kind: "now" | "thirty" | "hour") => void;
   onOpenLocationSearch: () => void;
@@ -26,8 +24,6 @@ export function BookingHomeSheet({
   pickup,
   drop,
   scheduleLabel,
-  distanceKm,
-  etaMinutes,
   onTripTypeChange,
   onQuickSchedule,
   onOpenLocationSearch,
@@ -115,13 +111,6 @@ export function BookingHomeSheet({
           <View style={styles.metricCopy}>
             <AppText variant="caption">Pickup time</AppText>
             <AppText variant="bodyStrong">{scheduleLabel}</AppText>
-          </View>
-        </View>
-        <View style={styles.metric}>
-          <AppIcon name="eta" size={15} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
-          <View style={styles.metricCopy}>
-            <AppText variant="caption">Route</AppText>
-            <AppText variant="bodyStrong">{distanceKm} km / {etaMinutes} min</AppText>
           </View>
         </View>
       </View>
@@ -254,7 +243,6 @@ const styles = StyleSheet.create({
   },
   metricsRow: {
     flexDirection: "row",
-    gap: space[2],
   },
   metric: {
     flex: 1,

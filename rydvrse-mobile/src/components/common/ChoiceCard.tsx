@@ -54,11 +54,12 @@ export function ChoiceCard({
 
 const styles = StyleSheet.create({
   card: {
+    flex: 1,
     borderRadius: radius.lg,
     backgroundColor: semantic.bg.surface,
     borderWidth: 1,
     borderColor: semantic.border.soft,
-    padding: spacing.lg,
+    padding: spacing.md,
     gap: spacing.sm,
     ...shadows.sm,
   },
@@ -74,11 +75,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   leadingWrap: {
-    width: 52,
-    height: 52,
+    width: 42,
+    height: 42,
     borderRadius: radius.md,
     backgroundColor: colors.neutral[100],
     alignItems: "center",

@@ -8,8 +8,6 @@ import { colors, radius, semantic, shadows, space } from "@/theme";
 type RydvrseMapPreviewProps = {
   pickupLabel: string;
   dropLabel: string;
-  distanceKm: string;
-  etaMinutes: string;
   onUseCurrentLocation?: () => void;
   onOpenSearch?: () => void;
   onRecenter?: () => void;
@@ -18,8 +16,6 @@ type RydvrseMapPreviewProps = {
 export function RydvrseMapPreview({
   pickupLabel,
   dropLabel,
-  distanceKm,
-  etaMinutes,
   onUseCurrentLocation,
   onOpenSearch,
   onRecenter,
@@ -72,17 +68,6 @@ export function RydvrseMapPreview({
             <AppText variant="caption">Drop</AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>{dropLabel}</AppText>
           </View>
-        </View>
-      </View>
-
-      <View style={styles.mapMetrics}>
-        <View style={styles.metricPill}>
-          <AppIcon name="route" size={14} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
-          <AppText variant="caption" style={styles.metricText}>{distanceKm} km</AppText>
-        </View>
-        <View style={styles.metricPill}>
-          <AppIcon name="clock" size={14} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
-          <AppText variant="caption" style={styles.metricText}>{etaMinutes} min</AppText>
         </View>
       </View>
 
@@ -218,7 +203,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: space[4],
     right: space[4],
-    bottom: 64,
+    bottom: 58,
     backgroundColor: "rgba(255,255,255,0.94)",
     borderRadius: radius.xl,
     padding: space[3],
@@ -248,26 +233,6 @@ const styles = StyleSheet.create({
     height: 1,
     marginLeft: 24,
     backgroundColor: semantic.border.soft,
-  },
-  mapMetrics: {
-    position: "absolute",
-    left: space[5],
-    bottom: space[4],
-    flexDirection: "row",
-    gap: space[2],
-  },
-  metricPill: {
-    minHeight: 34,
-    borderRadius: radius.full,
-    backgroundColor: "rgba(255,255,255,0.94)",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space[1],
-    paddingHorizontal: space[3],
-    ...shadows.sm,
-  },
-  metricText: {
-    color: semantic.text.primary,
   },
   currentLocationButton: {
     position: "absolute",
