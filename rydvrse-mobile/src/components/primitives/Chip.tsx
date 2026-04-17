@@ -2,8 +2,8 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 
 import { AppIcon, AppIconName } from "@/assets/icons/AppIcon";
-import { AppText } from "@/components/common/AppText";
-import { colors, radius, spacing } from "@/theme";
+import { Text } from "@/components/primitives/Text";
+import { colors, radius, space } from "@/theme";
 
 type Tone = "info" | "success" | "warning" | "danger" | "neutral";
 
@@ -40,19 +40,16 @@ const toneMap: Record<Tone, { background: string; text: string; border: string; 
   },
 };
 
-/**
- * Legacy StatusChip — updated with new semantic colors.
- * Prefer the new primitives/Chip.tsx for new code.
- */
-export function StatusChip({ label, tone = "neutral" }: { label: string; tone?: Tone }) {
+export function Chip({ label, tone = "neutral", icon }: { label: string; tone?: Tone; icon?: AppIconName }) {
   const palette = toneMap[tone];
+  const resolvedIcon = icon ?? palette.icon;
 
   return (
     <View style={[styles.chip, { backgroundColor: palette.background, borderColor: palette.border }]}>
-      <AppIcon name={palette.icon} size={14} color={palette.text} secondaryColor={palette.text} />
-      <AppText variant="caption" style={[styles.label, { color: palette.text }]}>
+      <AppIcon name={resolvedIcon} size={14} color={palette.text} secondaryColor={palette.text} />
+      <Text variant="caption" style={[styles.label, { color: palette.text }]}>
         {label}
-      </AppText>
+      </Text>
     </View>
   );
 }
@@ -63,8 +60,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
     borderRadius: radius.full,
     borderWidth: 1,
   },

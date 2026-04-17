@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { BrandMark } from "@/assets/brand/BrandMark";
 import { AppText } from "@/components/common/AppText";
-import { colors, spacing } from "@/theme";
+import { semantic, spacing } from "@/theme";
 
 type BrandLockupProps = {
   compact?: boolean;
@@ -38,11 +38,11 @@ const styles = StyleSheet.create({
     gap: 2
   },
   wordmark: {
-    color: colors.text.primary,
+    color: semantic.text.primary,
     letterSpacing: 0.2
   },
   tagline: {
-    color: colors.text.secondary,
+    color: semantic.text.secondary,
     letterSpacing: 0.5
   }
 });

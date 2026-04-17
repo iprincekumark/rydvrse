@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { AppIcon } from "@/assets/icons/AppIcon";
 import { AppText } from "@/components/common/AppText";
-import { colors, radius, spacing } from "@/theme";
+import { colors, radius, semantic, spacing } from "@/theme";
 
 type Tone = "info" | "success" | "warning" | "danger";
 
@@ -11,26 +11,30 @@ const toneStyles: Record<Tone, { background: string; text: string }> = {
   info: { background: colors.state.infoSoft, text: colors.state.info },
   success: { background: colors.state.successSoft, text: colors.state.success },
   warning: { background: colors.state.warningSoft, text: colors.state.warning },
-  danger: { background: colors.state.dangerSoft, text: colors.state.danger }
+  danger: { background: colors.state.dangerSoft, text: colors.state.danger },
 };
 
+/**
+ * Legacy StatusBanner — updated with new semantic colors.
+ * Prefer the new feedback/Banner.tsx for new code.
+ */
 export function StatusBanner({ tone = "info", title, message }: { tone?: Tone; title: string; message: string }) {
-  const theme = toneStyles[tone];
+  const t = toneStyles[tone];
   return (
-    <View style={[styles.banner, { backgroundColor: theme.background, borderColor: colors.border.soft }]}>
+    <View style={[styles.banner, { backgroundColor: t.background }]}>
       <View style={styles.iconWrap}>
         <AppIcon
           name={tone === "success" ? "check" : tone === "warning" || tone === "danger" ? "alert" : "shield"}
           size={18}
-          color={theme.text}
-          secondaryColor={theme.text}
+          color={t.text}
+          secondaryColor={t.text}
         />
       </View>
       <View style={styles.content}>
-        <AppText variant="bodyStrong" style={{ color: colors.text.primary }}>
+        <AppText variant="bodyStrong" style={{ color: semantic.text.primary }}>
           {title}
         </AppText>
-        <AppText variant="caption" style={{ color: colors.text.secondary }}>
+        <AppText variant="caption" style={{ color: semantic.text.secondary }}>
           {message}
         </AppText>
       </View>
@@ -43,20 +47,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     gap: spacing.sm,
-    borderWidth: 1,
     flexDirection: "row",
-    alignItems: "flex-start"
+    alignItems: "flex-start",
   },
   iconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.md,
-    backgroundColor: colors.background.surface,
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    backgroundColor: "rgba(255,255,255,0.7)",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
   },
   content: {
     flex: 1,
-    gap: spacing.xs
-  }
+    gap: spacing.xs,
+  },
 });

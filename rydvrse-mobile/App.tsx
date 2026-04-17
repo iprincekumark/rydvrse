@@ -8,7 +8,7 @@ import { Provider } from "react-redux";
 
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { store } from "@/store";
-import { colors } from "@/theme";
+import { colors, semantic } from "@/theme";
 
 export default function App() {
   const [loaded] = useFonts({
@@ -25,12 +25,12 @@ export default function App() {
           <View
             style={{
               flex: 1,
-              backgroundColor: colors.background.app,
+              backgroundColor: semantic.bg.app,
               alignItems: "center",
               justifyContent: "center"
             }}
           >
-            <ActivityIndicator size="large" color={colors.primary.base} />
+            <ActivityIndicator size="large" color={colors.brand.primary} />
           </View>
         </SafeAreaProvider>
       </GestureHandlerRootView>

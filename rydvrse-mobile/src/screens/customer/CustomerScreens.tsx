@@ -24,7 +24,7 @@ import { customerApi } from "@/services/api/customer";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { markProfileComplete, setActiveBooking, setBookings, setQuote, updateBookingForm } from "@/store/customerSlice";
 import { hydrateSession, logout } from "@/store/sessionSlice";
-import { colors, spacing } from "@/theme";
+import { colors, semantic, spacing } from "@/theme";
 import { formatCompactTime, formatCurrency } from "@/utils/format";
 
 const serviceEyebrowMap: Record<string, string> = {
@@ -115,7 +115,7 @@ function CustomerSignalStrip() {
         ].map((item) => (
           <View key={item.title} style={styles.signalCard}>
             <View style={styles.signalIconWrap}>
-              <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+              <AppIcon name={item.icon} size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
             </View>
             <View style={styles.signalText}>
               <AppText variant="bodyStrong">{item.title}</AppText>
@@ -140,14 +140,14 @@ function QuoteSummaryStrip({ serviceType, amount }: { serviceType: string; amoun
       </View>
       <View style={styles.metricCard}>
         <View style={styles.metricIconWrap}>
-          <AppIcon name="wallet" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+          <AppIcon name="wallet" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
         </View>
         <AppText variant="caption">Estimated total</AppText>
         <AppText variant="bodyStrong">{amount}</AppText>
       </View>
       <View style={styles.metricCard}>
         <View style={styles.metricIconWrap}>
-          <AppIcon name="shield" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+          <AppIcon name="shield" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
         </View>
         <AppText variant="caption">Billing mode</AppText>
         <AppText variant="bodyStrong">Visible upfront</AppText>
@@ -166,7 +166,7 @@ function DriverTrustStrip() {
       ].map((item) => (
         <View key={item.label} style={styles.metricCard}>
           <View style={styles.metricIconWrap}>
-            <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+            <AppIcon name={item.icon} size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
           </View>
           <AppText variant="caption">{item.label}</AppText>
           <AppText variant="bodyStrong">{item.value}</AppText>
@@ -186,7 +186,7 @@ function TripMetricRow() {
       ].map((item) => (
         <View key={item.label} style={styles.metricCard}>
           <View style={styles.metricIconWrap}>
-            <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+            <AppIcon name={item.icon} size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
           </View>
           <AppText variant="caption">{item.label}</AppText>
           <AppText variant="bodyStrong">{item.value}</AppText>
@@ -281,14 +281,12 @@ export function CustomerProfileSetupScreen() {
       city_name: city
     });
     dispatch(markProfileComplete());
-    // Navigation happens automatically via conditional rendering in RootNavigator
-    // when profileComplete becomes true — no manual navigate needed.
     setSaving(false);
   };
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="First-time setup" title="Tell us who’s booking and which city you’ll start from." subtitle="This keeps serviceability, pricing, and support context accurate from your very first ride." visualVariant="trust" />
+      <HeaderBlock eyebrow="First-time setup" title="Tell us who's booking and which city you'll start from." subtitle="This keeps serviceability, pricing, and support context accurate from your very first ride." visualVariant="trust" />
       <View style={styles.stackMd}>
         <TextField label="Full name" value={fullName} onChangeText={setFullName} icon="profile" />
         <TextField label="Email (optional)" value={email} onChangeText={setEmail} icon="document" />
@@ -463,7 +461,7 @@ export function CustomerQuoteScreen() {
   if (loading || !quote) {
     return (
       <Screen>
-        <HeaderBlock eyebrow="Quote" title="We’re calculating the fare with every visible component." subtitle="No hidden post-trip pricing. You’ll see the full breakdown before you confirm." visualVariant="trust" />
+        <HeaderBlock eyebrow="Quote" title="We're calculating the fare with every visible component." subtitle="No hidden post-trip pricing. You'll see the full breakdown before you confirm." visualVariant="trust" />
         <SectionCard>
           <Skeleton height={22} width="50%" />
           <View style={styles.stackSm}>
@@ -757,7 +755,7 @@ export function CustomerBookingsScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Bookings" title="Upcoming and past bookings live in one timeline-friendly view." subtitle="This screen is the customer’s single source of truth outside the active trip flow." visualVariant="customer" />
+      <HeaderBlock eyebrow="Bookings" title="Upcoming and past bookings live in one timeline-friendly view." subtitle="This screen is the customer's single source of truth outside the active trip flow." visualVariant="customer" />
       <View style={styles.stackMd}>
         {loading ? (
           <>
@@ -841,7 +839,7 @@ export function CustomerSupportScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Help and support" title="Support should be available before, during, and after the ride." subtitle="High-stress states use calm language and keep the user’s typed context intact if something goes wrong." visualVariant="trust" />
+      <HeaderBlock eyebrow="Help and support" title="Support should be available before, during, and after the ride." subtitle="High-stress states use calm language and keep the user's typed context intact if something goes wrong." visualVariant="trust" />
       <View style={styles.stackMd}>
         <TextField label="Category" value={category} onChangeText={setCategory} icon="help" />
         <TextField label="Describe the issue" value={description} onChangeText={setDescription} icon="document" multiline />
@@ -894,7 +892,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 18,
-    backgroundColor: colors.primary.soft,
+    backgroundColor: colors.brand.soft,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -911,7 +909,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   bookingCaption: {
-    color: colors.primary.base
+    color: colors.brand.primary
   },
   signalStrip: {
     gap: spacing.sm
@@ -923,10 +921,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs
   },
   signalIconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 14,
-    backgroundColor: colors.background.muted,
+    backgroundColor: colors.brand.soft,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -942,10 +940,10 @@ const styles = StyleSheet.create({
   metricCard: {
     flex: 1,
     minWidth: 140,
-    backgroundColor: colors.background.surface,
+    backgroundColor: semantic.bg.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.border.soft,
+    borderColor: semantic.border.soft,
     padding: spacing.md,
     gap: spacing.xs
   },
@@ -953,7 +951,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 14,
-    backgroundColor: colors.primary.soft,
+    backgroundColor: colors.brand.soft,
     alignItems: "center",
     justifyContent: "center"
   },

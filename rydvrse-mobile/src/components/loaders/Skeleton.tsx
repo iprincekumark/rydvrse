@@ -13,7 +13,7 @@ export function Skeleton({ height = 16, width = "100%", radiusValue = radius.md 
         toValue: 1,
         duration: 1400,
         easing: Easing.linear,
-        useNativeDriver: true
+        useNativeDriver: true,
       })
     ).start();
   }, [translateX]);
@@ -28,11 +28,11 @@ export function Skeleton({ height = 16, width = "100%", radiusValue = radius.md 
               {
                 translateX: translateX.interpolate({
                   inputRange: [-1, 1],
-                  outputRange: [-220, 220]
-                })
-              }
-            ]
-          }
+                  outputRange: [-220, 220],
+                }),
+              },
+            ],
+          },
         ]}
       >
         <LinearGradient
@@ -49,10 +49,10 @@ export function Skeleton({ height = 16, width = "100%", radiusValue = radius.md 
 const styles = StyleSheet.create({
   base: {
     overflow: "hidden",
-    backgroundColor: colors.background.muted
+    backgroundColor: colors.neutral[100],
   },
   gradient: {
     flex: 1,
-    width: 180
-  }
+    width: 180,
+  },
 });

@@ -43,7 +43,7 @@ import {
   DriverTripCompleteScreen
 } from "@/screens/driver/DriverScreens";
 import { useAppSelector } from "@/store";
-import { colors, radius, shadows, spacing, typography } from "@/theme";
+import { colors, fontFamily, radius, semantic, shadows, space } from "@/theme";
 
 const RootStack = createNativeStackNavigator();
 const CustomerStack = createNativeStackNavigator();
@@ -56,24 +56,25 @@ function CustomerTabNavigator() {
     <CustomerTabs.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary.base,
-        tabBarInactiveTintColor: colors.text.muted,
+        tabBarActiveTintColor: colors.brand.primary,
+        tabBarInactiveTintColor: colors.neutral[400],
         tabBarStyle: {
-          backgroundColor: colors.background.surface,
-          borderTopColor: colors.border.soft,
-          height: 76,
-          paddingTop: spacing.xs,
-          paddingBottom: spacing.sm,
-          ...shadows.card
+          backgroundColor: semantic.bg.surface,
+          borderTopColor: semantic.border.soft,
+          borderTopWidth: 1,
+          height: 64,
+          paddingTop: space[2],
+          paddingBottom: space[2],
+          ...shadows.sm,
         },
         tabBarLabelStyle: {
-          fontFamily: typography.family.semiBold,
-          fontSize: 11
+          fontFamily: fontFamily.semiBold,
+          fontSize: 11,
         },
         tabBarItemStyle: {
           borderRadius: radius.md,
-          marginHorizontal: 2
-        }
+          marginHorizontal: 2,
+        },
       }}
     >
       <CustomerTabs.Screen name="CustomerHome" component={CustomerHomeScreen} options={{ title: "Home", tabBarIcon: ({ color }) => <AppIcon name="home" color={color} secondaryColor={color} /> }} />
@@ -89,24 +90,25 @@ function DriverTabNavigator() {
     <DriverTabs.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary.base,
-        tabBarInactiveTintColor: colors.text.muted,
+        tabBarActiveTintColor: colors.brand.primary,
+        tabBarInactiveTintColor: colors.neutral[400],
         tabBarStyle: {
-          backgroundColor: colors.background.surface,
-          borderTopColor: colors.border.soft,
-          height: 76,
-          paddingTop: spacing.xs,
-          paddingBottom: spacing.sm,
-          ...shadows.card
+          backgroundColor: semantic.bg.surface,
+          borderTopColor: semantic.border.soft,
+          borderTopWidth: 1,
+          height: 64,
+          paddingTop: space[2],
+          paddingBottom: space[2],
+          ...shadows.sm,
         },
         tabBarLabelStyle: {
-          fontFamily: typography.family.semiBold,
-          fontSize: 11
+          fontFamily: fontFamily.semiBold,
+          fontSize: 11,
         },
         tabBarItemStyle: {
           borderRadius: radius.md,
-          marginHorizontal: 2
-        }
+          marginHorizontal: 2,
+        },
       }}
     >
       <DriverTabs.Screen name="DriverHome" component={DriverHomeScreen} options={{ title: "Home", tabBarIcon: ({ color }) => <AppIcon name="home" color={color} secondaryColor={color} /> }} />
@@ -192,12 +194,12 @@ export function RootNavigator() {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      background: colors.background.app,
-      card: colors.background.surface,
-      text: colors.text.primary,
-      primary: colors.primary.base,
-      border: colors.border.soft
-    }
+      background: semantic.bg.app,
+      card: semantic.bg.surface,
+      text: semantic.text.primary,
+      primary: colors.brand.primary,
+      border: semantic.border.soft,
+    },
   };
 
   const resolvedRole = env.appVariant === "dual" ? activeRole : env.appVariant === "customer" ? "CUSTOMER" : "DRIVER";

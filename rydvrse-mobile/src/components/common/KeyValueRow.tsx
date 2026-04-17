@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { AppIcon, AppIconName } from "@/assets/icons/AppIcon";
 import { AppText } from "@/components/common/AppText";
-import { colors, radius, spacing } from "@/theme";
+import { colors, radius, semantic, spacing } from "@/theme";
 
 function resolveIcon(label: string): AppIconName {
   const normalized = label.toLowerCase();
@@ -31,7 +31,7 @@ export function KeyValueRow({ label, value, icon }: { label: string; value: stri
     <View style={styles.row}>
       <View style={styles.labelWrap}>
         <View style={styles.iconWrap}>
-          <AppIcon name={resolvedIcon} size={15} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+          <AppIcon name={resolvedIcon} size={15} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
         </View>
         <AppText variant="caption" style={styles.label}>{label}</AppText>
       </View>
@@ -50,32 +50,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     gap: spacing.md,
-    paddingVertical: spacing.xs
+    paddingVertical: spacing.xs,
   },
   labelWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    flex: 1
+    flex: 1,
   },
   iconWrap: {
     width: 28,
     height: 28,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary.soft,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brand.soft,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
   },
   label: {
-    color: colors.text.secondary
+    color: semantic.text.secondary,
   },
   valueWrap: {
     flexShrink: 1,
-    maxWidth: "52%"
+    maxWidth: "52%",
   },
   value: {
-    color: colors.text.primary,
+    color: semantic.text.primary,
     textAlign: "right",
-    flexShrink: 1
-  }
+    flexShrink: 1,
+  },
 });

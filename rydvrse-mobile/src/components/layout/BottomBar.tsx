@@ -2,41 +2,55 @@ import React from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { AppIconName } from "@/assets/icons/AppIcon";
-import { PrimaryButton } from "@/components/common/PrimaryButton";
-import { colors, spacing } from "@/theme";
+import { Button } from "@/components/primitives/Button";
+import { space } from "@/theme";
 
-type BottomActionBarProps = {
+type BottomBarProps = {
   primaryLabel: string;
   secondaryLabel?: string;
   onPrimaryPress?: () => void;
   onSecondaryPress?: () => void;
   primaryDisabled?: boolean;
+  primaryLoading?: boolean;
   primaryIcon?: AppIconName;
   secondaryIcon?: AppIconName;
+  primaryVariant?: "primary" | "danger";
 };
 
-/**
- * Legacy BottomActionBar — updated with new brand colors via PrimaryButton.
- * Prefer the new layout/BottomBar.tsx for new code.
- */
-export function BottomActionBar({
+export function BottomBar({
   primaryLabel,
   secondaryLabel,
   onPrimaryPress,
   onSecondaryPress,
   primaryDisabled,
+  primaryLoading = false,
   primaryIcon = "arrowRight",
   secondaryIcon,
-}: BottomActionBarProps) {
+  primaryVariant = "primary",
+}: BottomBarProps) {
   const { width } = useWindowDimensions();
   const stacked = width < 390;
 
   return (
     <View style={[styles.container, stacked && styles.containerStacked]}>
       {secondaryLabel ? (
-        <PrimaryButton label={secondaryLabel} secondary onPress={onSecondaryPress} leadingIcon={secondaryIcon} style={styles.secondary} />
+        <Button
+          label={secondaryLabel}
+          variant="secondary"
+          onPress={onSecondaryPress}
+          leadingIcon={secondaryIcon}
+          style={styles.flex}
+        />
       ) : null}
-      <PrimaryButton label={primaryLabel} onPress={onPrimaryPress} disabled={primaryDisabled} trailingIcon={primaryIcon} style={styles.primary} />
+      <Button
+        label={primaryLabel}
+        variant={primaryVariant}
+        onPress={onPrimaryPress}
+        disabled={primaryDisabled}
+        loading={primaryLoading}
+        trailingIcon={primaryIcon}
+        style={styles.flex}
+      />
     </View>
   );
 }
@@ -44,17 +58,13 @@ export function BottomActionBar({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    gap: spacing.sm,
-    paddingTop: spacing.md,
+    gap: space[3],
+    paddingTop: space[4],
   },
   containerStacked: {
     flexDirection: "column",
   },
-  secondary: {
+  flex: {
     flex: 1,
-  },
-  primary: {
-    flex: 1,
-    backgroundColor: colors.brand.primary,
   },
 });

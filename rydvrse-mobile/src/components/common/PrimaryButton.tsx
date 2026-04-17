@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View, ViewStyle } from "react-native";
 
 import { AppIcon, AppIconName } from "@/assets/icons/AppIcon";
 import { AppText } from "@/components/common/AppText";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors, radius, semantic, spacing, typography } from "@/theme";
 
 type PrimaryButtonProps = {
   label: string;
@@ -15,6 +15,10 @@ type PrimaryButtonProps = {
   trailingIcon?: AppIconName;
 };
 
+/**
+ * Legacy PrimaryButton — uses new brand colors.
+ * Prefer the new primitives/Button.tsx for new code.
+ */
 export function PrimaryButton({
   label,
   onPress,
@@ -22,9 +26,9 @@ export function PrimaryButton({
   disabled = false,
   style,
   leadingIcon,
-  trailingIcon
+  trailingIcon,
 }: PrimaryButtonProps) {
-  const iconColor = secondary ? colors.text.primary : colors.text.inverted;
+  const iconColor = secondary ? semantic.text.primary : semantic.text.inverted;
 
   return (
     <Pressable
@@ -38,17 +42,14 @@ export function PrimaryButton({
         secondary ? styles.secondary : styles.primary,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
-        style
+        style,
       ]}
     >
       <View style={styles.inner}>
         {leadingIcon ? <AppIcon name={leadingIcon} size={18} color={iconColor} secondaryColor={iconColor} /> : null}
         <AppText
           variant="bodyStrong"
-          style={[
-            styles.label,
-            secondary ? styles.secondaryLabel : styles.primaryLabel
-          ]}
+          style={[styles.label, secondary ? styles.secondaryLabel : styles.primaryLabel]}
         >
           {label}
         </AppText>
@@ -60,41 +61,41 @@ export function PrimaryButton({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 54,
+    minHeight: 52,
     borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    borderWidth: 1
+    borderWidth: 1,
   },
   inner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs
+    gap: spacing.xs,
   },
   primary: {
-    backgroundColor: colors.primary.base,
-    borderColor: colors.primary.base
+    backgroundColor: colors.brand.primary,
+    borderColor: colors.brand.primary,
   },
   secondary: {
-    backgroundColor: colors.background.surface,
-    borderColor: colors.border.soft
+    backgroundColor: semantic.bg.surface,
+    borderColor: semantic.border.soft,
   },
   disabled: {
-    opacity: 0.45
+    opacity: 0.45,
   },
   pressed: {
-    transform: [{ scale: 0.985 }],
-    opacity: 0.92
+    transform: [{ scale: 0.96 }],
+    opacity: 0.85,
   },
   label: {
-    fontFamily: typography.family.bold
+    fontFamily: typography.family.bold,
   },
   primaryLabel: {
-    color: colors.text.inverted
+    color: semantic.text.inverted,
   },
   secondaryLabel: {
-    color: colors.text.primary
-  }
+    color: semantic.text.primary,
+  },
 });

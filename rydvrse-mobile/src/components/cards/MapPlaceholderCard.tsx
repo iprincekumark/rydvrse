@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { RouteArtwork } from "@/assets/illustrations/RouteArtwork";
 import { AppText } from "@/components/common/AppText";
-import { colors, radius, spacing } from "@/theme";
+import { colors, radius, semantic, spacing } from "@/theme";
 
 export function MapPlaceholderCard({ title = "Live map preview", subtitle = "Tracking and route context appear here during the trip." }: { title?: string; subtitle?: string }) {
   return (
@@ -21,17 +21,17 @@ const styles = StyleSheet.create({
   card: {
     minHeight: 180,
     borderRadius: radius.xl,
-    backgroundColor: colors.background.surface,
+    backgroundColor: semantic.bg.surface,
     borderWidth: 1,
-    borderColor: colors.border.soft,
+    borderColor: semantic.border.soft,
     padding: spacing.lg,
     justifyContent: "flex-end",
-    overflow: "hidden"
+    overflow: "hidden",
   },
   artWrap: {
     position: "absolute",
     top: 0,
     left: 0,
-    right: 0
-  }
+    right: 0,
+  },
 });

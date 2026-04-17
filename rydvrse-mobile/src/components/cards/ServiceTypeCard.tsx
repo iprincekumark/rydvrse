@@ -1,28 +1,26 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppText } from "@/components/common/AppText";
-import { colors, radius, semantic, shadows, spacing } from "@/theme";
+import { Text } from "@/components/primitives/Text";
+import { colors, radius, semantic, shadows, space } from "@/theme";
 
-/**
- * Legacy ChoiceCard — updated with new brand tokens.
- * Prefer the new cards/ServiceTypeCard.tsx for new code.
- */
-export function ChoiceCard({
+type ServiceTypeCardProps = {
+  title: string;
+  subtitle: string;
+  eyebrow?: string;
+  selected?: boolean;
+  leading?: React.ReactNode;
+  onPress?: () => void;
+};
+
+export function ServiceTypeCard({
   title,
   subtitle,
   selected = false,
   eyebrow,
   leading,
   onPress,
-}: {
-  title: string;
-  subtitle: string;
-  selected?: boolean;
-  eyebrow?: string;
-  leading?: React.ReactNode;
-  onPress?: () => void;
-}) {
+}: ServiceTypeCardProps) {
   return (
     <Pressable
       style={({ pressed }) => [
@@ -40,12 +38,12 @@ export function ChoiceCard({
         <View style={styles.content}>
           <View style={styles.header}>
             <View style={styles.titleWrap}>
-              {eyebrow ? <AppText variant="overline">{eyebrow}</AppText> : null}
-              <AppText variant="section">{title}</AppText>
+              {eyebrow ? <Text variant="overline">{eyebrow}</Text> : null}
+              <Text variant="headingSm">{title}</Text>
             </View>
             <View style={[styles.dot, selected && styles.dotSelected]} />
           </View>
-          <AppText variant="body">{subtitle}</AppText>
+          <Text variant="bodySm">{subtitle}</Text>
         </View>
       </View>
     </Pressable>
@@ -58,8 +56,8 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.bg.surface,
     borderWidth: 1,
     borderColor: semantic.border.soft,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    padding: space[5],
+    gap: space[3],
     ...shadows.sm,
   },
   selected: {
@@ -74,7 +72,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: spacing.md,
+    gap: space[4],
   },
   leadingWrap: {
     width: 52,
@@ -89,13 +87,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    gap: spacing.xs,
+    gap: space[2],
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: spacing.md,
+    gap: space[4],
   },
   titleWrap: {
     flex: 1,

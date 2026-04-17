@@ -22,7 +22,7 @@ import { driverApi } from "@/services/api/driver";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { setActiveAssignmentId, setAvailability, setOffers, setOnboardingStatus } from "@/store/driverSlice";
 import { hydrateSession, logout } from "@/store/sessionSlice";
-import { colors, spacing } from "@/theme";
+import { colors, semantic, spacing } from "@/theme";
 import { formatCompactTime, formatCurrency } from "@/utils/format";
 
 function resolveAvailabilityTone(status: string): "success" | "warning" | "neutral" {
@@ -82,7 +82,7 @@ function DriverSignalStrip() {
         ].map((item) => (
           <View key={item.title} style={styles.signalCard}>
             <View style={styles.signalIconWrap}>
-              <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+              <AppIcon name={item.icon} size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
             </View>
             <View style={styles.signalText}>
               <AppText variant="bodyStrong">{item.title}</AppText>
@@ -157,7 +157,7 @@ export function DriverOnboardingChecklistScreen() {
           { title: "Bank details", icon: "bank" as const },
           { title: "Profile photo", icon: "camera" as const }
         ].map((item, index) => (
-          <ChoiceCard key={item.title} title={item.title} eyebrow={`Step ${index + 1}`} subtitle={index === 0 ? "Completed in the OTP flow." : "Required before review submission."} selected={index === 0} leading={<AppIcon name={item.icon} size={20} color={colors.primary.base} secondaryColor={colors.secondary.muted} />} />
+          <ChoiceCard key={item.title} title={item.title} eyebrow={`Step ${index + 1}`} subtitle={index === 0 ? "Completed in the OTP flow." : "Required before review submission."} selected={index === 0} leading={<AppIcon name={item.icon} size={20} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />} />
         ))}
         <BottomActionBar primaryLabel="Continue" onPrimaryPress={() => navigation.navigate("DriverDocumentUpload")} primaryIcon="arrowRight" />
       </View>
@@ -310,7 +310,7 @@ export function DriverHomeScreen() {
                       <View style={styles.offerRow}>
                         <View style={styles.offerMain}>
                           <View style={styles.offerIconWrap}>
-                            <AppIcon name="jobs" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+                            <AppIcon name="jobs" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <View style={styles.offerHeading}>
@@ -322,7 +322,7 @@ export function DriverHomeScreen() {
                         </View>
                         <View style={styles.offerAside}>
                           <AppText variant="bodyStrong">{formatCurrency(offer.estimated_earning_paise)}</AppText>
-                          <AppText variant="caption" style={{ color: colors.primary.base }}>Preview earning</AppText>
+                          <AppText variant="caption" style={{ color: colors.brand.primary }}>Preview earning</AppText>
                         </View>
                       </View>
                     </SectionCard>
@@ -421,7 +421,7 @@ export function DriverPickupScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Pickup approach" title="Arrival is logged, but the trip still waits for the customer’s start confirmation." subtitle="This keeps billing fair and aligns the driver flow with the trust-first product rule." visualVariant="trust" />
+      <HeaderBlock eyebrow="Pickup approach" title="Arrival is logged, but the trip still waits for the customer's start confirmation." subtitle="This keeps billing fair and aligns the driver flow with the trust-first product rule." visualVariant="trust" />
       <View style={styles.stackMd}>
         <MapPlaceholderCard title="Pickup navigation" subtitle="Navigation context, ETA, and issue raising sit together here." />
         <BottomActionBar primaryLabel={marking ? "Marking..." : "Mark arrived"} secondaryLabel="Pickup issue" onPrimaryPress={handleArrived} onSecondaryPress={() => navigation.navigate("DriverSupport")} primaryDisabled={marking} primaryIcon="check" secondaryIcon="alert" />
@@ -540,7 +540,7 @@ export function DriverEarningsScreen() {
               <View style={styles.offerRow}>
                 <View style={styles.offerMain}>
                   <View style={styles.offerIconWrap}>
-                    <AppIcon name="earnings" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
+                    <AppIcon name="earnings" size={18} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.offerHeading}>
@@ -552,7 +552,7 @@ export function DriverEarningsScreen() {
                 </View>
                 <View style={styles.offerAside}>
                   <AppText variant="bodyStrong">{formatCurrency(item.amount_paise)}</AppText>
-                  <AppText variant="caption" style={{ color: colors.primary.base }}>Net payout</AppText>
+                  <AppText variant="caption" style={{ color: colors.brand.primary }}>Net payout</AppText>
                 </View>
               </View>
             </SectionCard>
@@ -634,10 +634,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs
   },
   signalIconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 14,
-    backgroundColor: colors.background.muted,
+    backgroundColor: colors.brand.soft,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 18,
-    backgroundColor: colors.primary.soft,
+    backgroundColor: colors.brand.soft,
     alignItems: "center",
     justifyContent: "center"
   },

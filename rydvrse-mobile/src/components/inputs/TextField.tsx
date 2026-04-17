@@ -1,25 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 
 import { AppIcon, AppIconName } from "@/assets/icons/AppIcon";
-import { AppText } from "@/components/common/AppText";
-import { colors, fontFamily, radius, semantic, spacing, typography } from "@/theme";
+import { Text } from "@/components/primitives/Text";
+import { colors, fontFamily, radius, semantic, space } from "@/theme";
 
 type TextFieldProps = {
   label: string;
   value: string;
   placeholder?: string;
   onChangeText?: (value: string) => void;
-  keyboardType?: "default" | "numeric" | "phone-pad";
+  keyboardType?: "default" | "numeric" | "phone-pad" | "email-address";
   multiline?: boolean;
   helperText?: string;
+  errorText?: string;
   icon?: AppIconName;
+  editable?: boolean;
 };
 
-/**
- * Legacy TextField — updated with new tokens.
- * Prefer the new inputs/TextField.tsx for new code.
- */
 export function TextField({
   label,
   value,
@@ -28,17 +26,32 @@ export function TextField({
   keyboardType = "default",
   multiline = false,
   helperText,
+  errorText,
   icon,
+  editable = true,
 }: TextFieldProps) {
+  const [focused, setFocused] = useState(false);
+  const hasError = Boolean(errorText);
+
   return (
     <View style={styles.wrapper}>
-      <AppText variant="caption" style={styles.label}>
-        {label}
-      </AppText>
-      <View style={[styles.inputShell, multiline && styles.multilineShell]}>
+      <Text variant="label" style={styles.label}>{label}</Text>
+      <View
+        style={[
+          styles.inputShell,
+          multiline && styles.multilineShell,
+          focused && styles.focusedShell,
+          hasError && styles.errorShell,
+        ]}
+      >
         {icon ? (
           <View style={styles.iconWrap}>
-            <AppIcon name={icon} size={17} color={colors.brand.primary} secondaryColor={colors.neutral[400]} />
+            <AppIcon
+              name={icon}
+              size={17}
+              color={focused ? colors.brand.primary : colors.neutral[400]}
+              secondaryColor={colors.neutral[400]}
+            />
           </View>
         ) : null}
         <TextInput
@@ -48,13 +61,20 @@ export function TextField({
           onChangeText={onChangeText}
           keyboardType={keyboardType}
           multiline={multiline}
-          style={[styles.input, multiline && styles.multiline, icon && styles.inputWithIcon]}
+          editable={editable}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={[
+            styles.input,
+            multiline && styles.multiline,
+            icon && styles.inputWithIcon,
+          ]}
         />
       </View>
-      {helperText ? (
-        <AppText variant="caption" style={styles.helperText}>
-          {helperText}
-        </AppText>
+      {hasError ? (
+        <Text variant="caption" style={styles.errorText}>{errorText}</Text>
+      ) : helperText ? (
+        <Text variant="caption" style={styles.helperText}>{helperText}</Text>
       ) : null}
     </View>
   );
@@ -62,7 +82,7 @@ export function TextField({
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: spacing.xs,
+    gap: space[2],
   },
   label: {
     color: semantic.text.secondary,
@@ -80,17 +100,25 @@ const styles = StyleSheet.create({
   multilineShell: {
     alignItems: "flex-start",
   },
+  focusedShell: {
+    borderWidth: 2,
+    borderColor: colors.brand.primary,
+  },
+  errorShell: {
+    borderWidth: 2,
+    borderColor: colors.state.danger,
+  },
   iconWrap: {
     width: 46,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: spacing.xs,
+    paddingTop: space[2],
     opacity: 0.85,
   },
   input: {
     flex: 1,
     minHeight: 52,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: space[4],
     color: semantic.text.primary,
     fontFamily: fontFamily.medium,
     fontSize: 15,
@@ -100,10 +128,13 @@ const styles = StyleSheet.create({
   },
   multiline: {
     minHeight: 110,
-    paddingTop: spacing.md,
+    paddingTop: space[4],
     textAlignVertical: "top",
   },
   helperText: {
     color: semantic.text.muted,
+  },
+  errorText: {
+    color: colors.state.danger,
   },
 });
