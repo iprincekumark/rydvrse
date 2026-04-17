@@ -1,5 +1,5 @@
 import React from "react";
-import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 export type HeaderArtworkVariant = "customer" | "driver" | "trust" | "status";
 
@@ -10,43 +10,39 @@ type HeaderArtworkProps = {
 };
 
 export function HeaderArtwork({ variant = "trust", width = 180, height = 140 }: HeaderArtworkProps) {
-  const glow = variant === "driver" ? "#D8F4E8" : variant === "status" ? "#FFF0D8" : "#DDF2EE";
-  const accent = variant === "driver" ? "#1E8E5C" : "#C8842F";
+  const primaryLine = variant === "status" ? "#167447" : "#242424";
+  const mutedLine = "#898989";
 
   return (
     <Svg width={width} height={height} viewBox="0 0 180 140" fill="none">
-      <Defs>
-        <LinearGradient id="panel" x1="14" y1="16" x2="160" y2="124" gradientUnits="userSpaceOnUse">
-          <Stop stopColor="#F6FBF9" />
-          <Stop offset="1" stopColor={glow} />
-        </LinearGradient>
-      </Defs>
-      <Rect x="12" y="10" width="156" height="120" rx="30" fill="url(#panel)" />
-      <Circle cx="132" cy="34" r="18" fill="#FFFFFF" opacity="0.72" />
-      <Circle cx="42" cy="108" r="24" fill="#FFFFFF" opacity="0.5" />
-      <Path d="M44 93C63 58 92 48 132 54" stroke="#0C6D69" strokeWidth="4" strokeLinecap="round" />
-      <Circle cx="42" cy="93" r="6" fill={accent} />
-      <Circle cx="136" cy="54" r="6" fill="#0C6D69" />
-      <Rect x="32" y="28" width="58" height="28" rx="14" fill="#FFFFFF" />
-      <Path d="M46 42H76" stroke="#0C6D69" strokeWidth="3.2" strokeLinecap="round" />
-      <Path d="M46 49H67" stroke="#0C6D69" strokeWidth="3.2" strokeLinecap="round" opacity="0.45" />
+      <Rect x="12" y="10" width="156" height="120" rx="18" fill="#FFFFFF" />
+      <Rect x="12" y="10" width="156" height="120" rx="18" stroke="rgba(34,42,53,0.12)" />
+      <Rect x="30" y="28" width="120" height="18" rx="9" fill="#F5F5F5" />
+      <Path d="M44 37H98" stroke={primaryLine} strokeWidth="3.2" strokeLinecap="round" />
+      <Path d="M112 37H136" stroke={mutedLine} strokeWidth="3.2" strokeLinecap="round" opacity="0.6" />
+      <Rect x="30" y="58" width="54" height="44" rx="12" fill="#F5F5F5" />
+      <Rect x="96" y="58" width="54" height="44" rx="12" fill="#F5F5F5" />
+      <Path d="M42 72H70" stroke={primaryLine} strokeWidth="3" strokeLinecap="round" />
+      <Path d="M42 83H62" stroke={mutedLine} strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+      <Path d="M108 72H136" stroke={primaryLine} strokeWidth="3" strokeLinecap="round" />
+      <Path d="M108 83H128" stroke={mutedLine} strokeWidth="3" strokeLinecap="round" opacity="0.6" />
       {variant === "driver" ? (
         <>
-          <Rect x="102" y="74" width="42" height="28" rx="14" fill="#FFFFFF" />
-          <Path d="M114 89H132" stroke={accent} strokeWidth="3.2" strokeLinecap="round" />
+          <Circle cx="137" cy="98" r="10" fill="#242424" />
+          <Path d="M132 98L136 102L143 94" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
         </>
       ) : null}
       {variant === "status" ? (
         <>
-          <Circle cx="128" cy="84" r="15" fill="#FFFFFF" />
-          <Path d="M122 84L126.5 88.5L135.5 79.5" stroke="#1E8E5C" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx="137" cy="98" r="10" fill="#167447" />
+          <Path d="M132 98L136 102L143 94" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
         </>
       ) : null}
       {variant === "customer" ? (
         <>
-          <Rect x="96" y="74" width="50" height="30" rx="15" fill="#FFFFFF" />
-          <Path d="M108 89H133" stroke={accent} strokeWidth="3.2" strokeLinecap="round" />
-          <Circle cx="124" cy="89" r="3.5" fill="#0C6D69" />
+          <Path d="M48 112H132" stroke="#242424" strokeWidth="3.4" strokeLinecap="round" />
+          <Circle cx="48" cy="112" r="5" fill="#242424" />
+          <Circle cx="132" cy="112" r="5" fill="#242424" />
         </>
       ) : null}
     </Svg>

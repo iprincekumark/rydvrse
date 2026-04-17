@@ -9,12 +9,12 @@ type ServiceIconProps = {
 };
 
 export function ServiceIcon({ serviceType, size = 48 }: ServiceIconProps) {
-  const stroke = "#0C6D69";
-  const accent = "#C8842F";
+  const stroke = "#242424";
+  const accent = "#898989";
 
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <Rect x="4" y="4" width="40" height="40" rx="16" fill="#EFF8F5" />
+      <Rect x="4" y="4" width="40" height="40" rx="12" fill="#F5F5F5" />
       {serviceType === "SCHEDULED_LOCAL" ? (
         <>
           <Circle cx="24" cy="24" r="8.5" stroke={stroke} strokeWidth="2.4" />

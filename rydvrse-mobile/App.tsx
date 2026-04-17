@@ -2,7 +2,6 @@ import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from "@expo-google-fonts/manrope";
-import { CormorantGaramond_600SemiBold, CormorantGaramond_700Bold } from "@expo-google-fonts/cormorant-garamond";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider } from "react-redux";
@@ -16,9 +15,7 @@ export default function App() {
     Manrope_500Medium,
     Manrope_600SemiBold,
     Manrope_700Bold,
-    Manrope_800ExtraBold,
-    CormorantGaramond_600SemiBold,
-    CormorantGaramond_700Bold
+    Manrope_800ExtraBold
   });
 
   if (!loaded) {

@@ -34,7 +34,7 @@ export function TextField({
       <View style={[styles.inputShell, multiline && styles.multilineShell]}>
         {icon ? (
           <View style={styles.iconWrap}>
-            <AppIcon name={icon} size={17} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+            <AppIcon name={icon} size={17} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
           </View>
         ) : null}
         <TextInput
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   },
   inputShell: {
     minHeight: 54,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border.soft,
     backgroundColor: colors.background.surface,
@@ -80,7 +80,8 @@ const styles = StyleSheet.create({
     width: 46,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: spacing.xs
+    paddingTop: spacing.xs,
+    opacity: 0.72
   },
   input: {
     flex: 1,

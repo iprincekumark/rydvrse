@@ -82,7 +82,7 @@ function DriverSignalStrip() {
         ].map((item) => (
           <View key={item.title} style={styles.signalCard}>
             <View style={styles.signalIconWrap}>
-              <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+              <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
             </View>
             <View style={styles.signalText}>
               <AppText variant="bodyStrong">{item.title}</AppText>
@@ -157,7 +157,7 @@ export function DriverOnboardingChecklistScreen() {
           { title: "Bank details", icon: "bank" as const },
           { title: "Profile photo", icon: "camera" as const }
         ].map((item, index) => (
-          <ChoiceCard key={item.title} title={item.title} eyebrow={`Step ${index + 1}`} subtitle={index === 0 ? "Completed in the OTP flow." : "Required before review submission."} selected={index === 0} leading={<AppIcon name={item.icon} size={20} color={colors.primary.base} secondaryColor={colors.secondary.amber} />} />
+          <ChoiceCard key={item.title} title={item.title} eyebrow={`Step ${index + 1}`} subtitle={index === 0 ? "Completed in the OTP flow." : "Required before review submission."} selected={index === 0} leading={<AppIcon name={item.icon} size={20} color={colors.primary.base} secondaryColor={colors.secondary.muted} />} />
         ))}
         <BottomActionBar primaryLabel="Continue" onPrimaryPress={() => navigation.navigate("DriverDocumentUpload")} primaryIcon="arrowRight" />
       </View>
@@ -310,7 +310,7 @@ export function DriverHomeScreen() {
                       <View style={styles.offerRow}>
                         <View style={styles.offerMain}>
                           <View style={styles.offerIconWrap}>
-                            <AppIcon name="jobs" size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+                            <AppIcon name="jobs" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <View style={styles.offerHeading}>
@@ -540,7 +540,7 @@ export function DriverEarningsScreen() {
               <View style={styles.offerRow}>
                 <View style={styles.offerMain}>
                   <View style={styles.offerIconWrap}>
-                    <AppIcon name="earnings" size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+                    <AppIcon name="earnings" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.offerHeading}>

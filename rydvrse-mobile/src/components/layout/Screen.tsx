@@ -14,9 +14,10 @@ export function Screen({ children, padded = true, scrollable = true, backgroundC
   const { width } = useWindowDimensions();
   const maxWidth = width >= 1100 ? 920 : width >= 720 ? 680 : undefined;
   const horizontalPadding = width >= 720 ? spacing.xxl : spacing.lg;
+  const verticalPadding = width >= 720 ? spacing.xxxl : spacing.xl;
 
   const content = (
-    <View style={[styles.content, padded && styles.padded, padded && { paddingHorizontal: horizontalPadding }]}>
+    <View style={[styles.content, padded && { paddingHorizontal: horizontalPadding, paddingVertical: verticalPadding }]}>
       <View style={[styles.inner, maxWidth ? { maxWidth, alignSelf: "center", width: "100%" } : null]}>
         {children}
       </View>
@@ -42,8 +43,5 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1
-  },
-  padded: {
-    paddingVertical: spacing.md
   }
 });

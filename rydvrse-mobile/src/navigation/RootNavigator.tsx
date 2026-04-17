@@ -43,7 +43,7 @@ import {
   DriverTripCompleteScreen
 } from "@/screens/driver/DriverScreens";
 import { useAppSelector } from "@/store";
-import { colors } from "@/theme";
+import { colors, radius, shadows, spacing, typography } from "@/theme";
 
 const RootStack = createNativeStackNavigator();
 const CustomerStack = createNativeStackNavigator();
@@ -61,12 +61,18 @@ function CustomerTabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.border.soft,
-          height: 72,
-          paddingTop: 8,
-          paddingBottom: 10
+          height: 76,
+          paddingTop: spacing.xs,
+          paddingBottom: spacing.sm,
+          ...shadows.card
         },
         tabBarLabelStyle: {
+          fontFamily: typography.family.semiBold,
           fontSize: 11
+        },
+        tabBarItemStyle: {
+          borderRadius: radius.md,
+          marginHorizontal: 2
         }
       }}
     >
@@ -88,12 +94,18 @@ function DriverTabNavigator() {
         tabBarStyle: {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.border.soft,
-          height: 72,
-          paddingTop: 8,
-          paddingBottom: 10
+          height: 76,
+          paddingTop: spacing.xs,
+          paddingBottom: spacing.sm,
+          ...shadows.card
         },
         tabBarLabelStyle: {
+          fontFamily: typography.family.semiBold,
           fontSize: 11
+        },
+        tabBarItemStyle: {
+          borderRadius: radius.md,
+          marginHorizontal: 2
         }
       }}
     >

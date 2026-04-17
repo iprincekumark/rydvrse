@@ -20,7 +20,13 @@ export function ChoiceCard({
   onPress?: () => void;
 }) {
   return (
-    <Pressable style={[styles.card, selected && styles.selected]} onPress={onPress}>
+    <Pressable
+      style={[styles.card, selected && styles.selected]}
+      onPress={onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityState={{ selected }}
+      accessibilityLabel={title}
+    >
       <View style={styles.row}>
         {leading ? <View style={styles.leadingWrap}>{leading}</View> : null}
         <View style={styles.content}>
@@ -56,8 +62,8 @@ const styles = StyleSheet.create({
   leadingWrap: {
     width: 56,
     height: 56,
-    borderRadius: 20,
-    backgroundColor: "#F4FBF8",
+    borderRadius: radius.lg,
+    backgroundColor: colors.background.muted,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -67,7 +73,7 @@ const styles = StyleSheet.create({
   },
   selected: {
     borderColor: colors.primary.base,
-    backgroundColor: colors.primary.soft
+    backgroundColor: colors.background.muted
   },
   header: {
     flexDirection: "row",

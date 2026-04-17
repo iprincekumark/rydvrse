@@ -40,11 +40,13 @@ rydvrse-mobile/
 
 ## Design System
 
-- Primary color: deep teal
-- Secondary accent: warm amber
-- Base background: warm off-white
-- Font family: `Manrope`
-- Design goal: calm, premium, trust-first
+- Visual direction: Cal.com-inspired monochrome restraint with product UI as the main visual content
+- Primary text and CTA color: charcoal `#242424`
+- Secondary text: mid gray `#898989`
+- Base background and surfaces: pure white `#ffffff`
+- Depth: subtle ring borders, soft shadows, and rounded 8-16px surfaces
+- Font family: `Manrope`, used as the local geometric fallback for the Cal Sans/Inter-inspired hierarchy
+- Design goal: calm, premium, trust-first, low-clutter, and responsive across phone, tablet, and web-sized canvases
 
 ## Navigation
 
@@ -115,7 +117,7 @@ This gives us a stable baseline for navigation, Redux state transitions, and sha
 - keep `EXPO_PUBLIC_USE_MOCKS=true` during early device testing unless backend connectivity is intentionally being tested
 - if a phone cannot download the dev bundle on LAN, use `npm run start:tunnel`
 - keep the phone and laptop on stable internet and disable VPN or network filtering if Expo Go cannot connect
-- make sure Expo Go is updated to a version compatible with Expo SDK 53
+- make sure Expo Go is updated to a version compatible with Expo SDK 54
 
 ## Notes
 

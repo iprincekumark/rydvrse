@@ -31,7 +31,7 @@ export function KeyValueRow({ label, value, icon }: { label: string; value: stri
     <View style={styles.row}>
       <View style={styles.labelWrap}>
         <View style={styles.iconWrap}>
-          <AppIcon name={resolvedIcon} size={15} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+          <AppIcon name={resolvedIcon} size={15} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
         </View>
         <AppText variant="caption" style={styles.label}>{label}</AppText>
       </View>

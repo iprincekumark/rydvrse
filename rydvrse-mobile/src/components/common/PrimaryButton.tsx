@@ -30,6 +30,9 @@ export function PrimaryButton({
     <Pressable
       disabled={disabled}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      accessibilityLabel={label}
       style={({ pressed }) => [
         styles.base,
         secondary ? styles.secondary : styles.primary,
@@ -58,10 +61,11 @@ export function PrimaryButton({
 const styles = StyleSheet.create({
   base: {
     minHeight: 54,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.lg
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1
   },
   inner: {
     flexDirection: "row",
@@ -70,11 +74,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   primary: {
-    backgroundColor: colors.primary.base
+    backgroundColor: colors.primary.base,
+    borderColor: colors.primary.base
   },
   secondary: {
     backgroundColor: colors.background.surface,
-    borderWidth: 1,
     borderColor: colors.border.soft
   },
   disabled: {

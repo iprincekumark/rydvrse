@@ -2,39 +2,39 @@ import { Platform, TextStyle, ViewStyle } from "react-native";
 
 export const colors = {
   primary: {
-    base: "#0C6D69",
-    strong: "#084E4B",
-    soft: "#D7F2EE"
+    base: "#242424",
+    strong: "#111111",
+    soft: "#F5F5F5"
   },
   secondary: {
-    amber: "#C8842F",
-    amberSoft: "#FAEDD8"
+    muted: "#898989",
+    soft: "#F5F5F5"
   },
   background: {
-    app: "#F6F4EE",
+    app: "#FFFFFF",
     surface: "#FFFFFF",
-    muted: "#EDF1ED",
-    elevated: "#FBFAF7"
+    muted: "#F5F5F5",
+    elevated: "#FAFAFA"
   },
   text: {
-    primary: "#163130",
-    secondary: "#577271",
-    muted: "#7F9694",
+    primary: "#242424",
+    secondary: "#898989",
+    muted: "#A3A3A3",
     inverted: "#FFFFFF"
   },
   border: {
-    soft: "#D7E1DD",
-    strong: "#B7C7C3"
+    soft: "rgba(34,42,53,0.10)",
+    strong: "rgba(34,42,53,0.18)"
   },
   state: {
-    success: "#1E8E5C",
-    successSoft: "#E0F2E8",
-    warning: "#B36A09",
-    warningSoft: "#FFF2DE",
+    success: "#167447",
+    successSoft: "#F2F8F4",
+    warning: "#8C5A12",
+    warningSoft: "#FAF7F1",
     danger: "#C43C3C",
-    dangerSoft: "#FCE8E8",
-    info: "#2A6AC7",
-    infoSoft: "#E6F0FF"
+    dangerSoft: "#FBF2F2",
+    info: "#0099FF",
+    infoSoft: "#F3F8FC"
   }
 };
 
@@ -50,35 +50,35 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 10,
-  md: 16,
-  lg: 22,
-  xl: 30,
-  pill: 999
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  pill: 9999
 };
 
 export const shadows = {
   card: Platform.select<ViewStyle>({
     ios: {
-      shadowColor: "#103533",
-      shadowOpacity: 0.1,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 8 }
+      shadowColor: "#222A35",
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 }
     },
     android: {
-      elevation: 4
+      elevation: 2
     },
     default: {}
   }),
   heavy: Platform.select<ViewStyle>({
     ios: {
-      shadowColor: "#103533",
-      shadowOpacity: 0.16,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 12 }
+      shadowColor: "#131316",
+      shadowOpacity: 0.1,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 }
     },
     android: {
-      elevation: 8
+      elevation: 4
     },
     default: {}
   })
@@ -86,8 +86,8 @@ export const shadows = {
 
 export const typography = {
   family: {
-    displaySemiBold: "CormorantGaramond_600SemiBold",
-    displayBold: "CormorantGaramond_700Bold",
+    displaySemiBold: "Manrope_700Bold",
+    displayBold: "Manrope_800ExtraBold",
     medium: "Manrope_500Medium",
     semiBold: "Manrope_600SemiBold",
     bold: "Manrope_700Bold",
@@ -95,30 +95,32 @@ export const typography = {
   },
   text: {
     hero: {
-      fontFamily: "CormorantGaramond_700Bold",
-      fontSize: 40,
-      lineHeight: 42,
-      letterSpacing: 0.2,
+      fontFamily: "Manrope_800ExtraBold",
+      fontSize: 42,
+      lineHeight: 46,
+      letterSpacing: -1.1,
       color: colors.text.primary
     } satisfies TextStyle,
     title: {
-      fontFamily: "Manrope_700Bold",
-      fontSize: 22,
-      lineHeight: 28,
+      fontFamily: "Manrope_800ExtraBold",
+      fontSize: 24,
+      lineHeight: 29,
+      letterSpacing: -0.5,
       color: colors.text.primary
     } satisfies TextStyle,
     section: {
       fontFamily: "Manrope_700Bold",
       fontSize: 18,
-      lineHeight: 24,
+      lineHeight: 22,
+      letterSpacing: -0.15,
       color: colors.text.primary
     } satisfies TextStyle,
     overline: {
       fontFamily: "Manrope_600SemiBold",
       fontSize: 11,
       lineHeight: 16,
-      color: colors.primary.base,
-      letterSpacing: 1.1,
+      color: colors.text.secondary,
+      letterSpacing: 0.9,
       textTransform: "uppercase"
     } satisfies TextStyle,
     body: {
@@ -131,6 +133,7 @@ export const typography = {
       fontFamily: "Manrope_600SemiBold",
       fontSize: 15,
       lineHeight: 22,
+      letterSpacing: -0.05,
       color: colors.text.primary
     } satisfies TextStyle,
     caption: {

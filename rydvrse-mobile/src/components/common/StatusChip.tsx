@@ -11,25 +11,25 @@ const toneMap: Record<Tone, { background: string; text: string; border: string; 
   info: {
     background: colors.state.infoSoft,
     text: colors.state.info,
-    border: "#CFE0FF",
+    border: "rgba(0,153,255,0.18)",
     icon: "status"
   },
   success: {
     background: colors.state.successSoft,
     text: colors.state.success,
-    border: "#C8E7D4",
+    border: "rgba(22,116,71,0.18)",
     icon: "check"
   },
   warning: {
     background: colors.state.warningSoft,
     text: colors.state.warning,
-    border: "#F2D5AB",
+    border: "rgba(140,90,18,0.18)",
     icon: "alert"
   },
   danger: {
     background: colors.state.dangerSoft,
     text: colors.state.danger,
-    border: "#F1C8C8",
+    border: "rgba(196,60,60,0.18)",
     icon: "alert"
   },
   neutral: {

@@ -17,7 +17,7 @@ const toneStyles: Record<Tone, { background: string; text: string }> = {
 export function StatusBanner({ tone = "info", title, message }: { tone?: Tone; title: string; message: string }) {
   const theme = toneStyles[tone];
   return (
-    <View style={[styles.banner, { backgroundColor: theme.background, borderColor: theme.text }]}>
+    <View style={[styles.banner, { backgroundColor: theme.background, borderColor: colors.border.soft }]}>
       <View style={styles.iconWrap}>
         <AppIcon
           name={tone === "success" ? "check" : tone === "warning" || tone === "danger" ? "alert" : "shield"}
@@ -27,10 +27,10 @@ export function StatusBanner({ tone = "info", title, message }: { tone?: Tone; t
         />
       </View>
       <View style={styles.content}>
-        <AppText variant="bodyStrong" style={{ color: theme.text }}>
+        <AppText variant="bodyStrong" style={{ color: colors.text.primary }}>
           {title}
         </AppText>
-        <AppText variant="caption" style={{ color: theme.text }}>
+        <AppText variant="caption" style={{ color: colors.text.secondary }}>
           {message}
         </AppText>
       </View>
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: radius.md,
-    backgroundColor: "rgba(255,255,255,0.55)",
+    backgroundColor: colors.background.surface,
     alignItems: "center",
     justifyContent: "center"
   },

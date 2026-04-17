@@ -42,8 +42,8 @@ type AppIconProps = {
 export function AppIcon({
   name,
   size = 20,
-  color = "#0C6D69",
-  secondaryColor = "#C8842F"
+  color = "#242424",
+  secondaryColor = "#898989"
 }: AppIconProps) {
   const strokeProps = {
     stroke: color,

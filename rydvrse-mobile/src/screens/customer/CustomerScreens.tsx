@@ -77,7 +77,7 @@ function BookingCard({
   onPress?: () => void;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={onPress} accessibilityRole={onPress ? "button" : undefined} accessibilityLabel={title}>
       <SectionCard>
         <View style={styles.bookingRow}>
           <View style={styles.bookingMain}>
@@ -115,7 +115,7 @@ function CustomerSignalStrip() {
         ].map((item) => (
           <View key={item.title} style={styles.signalCard}>
             <View style={styles.signalIconWrap}>
-              <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+              <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
             </View>
             <View style={styles.signalText}>
               <AppText variant="bodyStrong">{item.title}</AppText>
@@ -140,14 +140,14 @@ function QuoteSummaryStrip({ serviceType, amount }: { serviceType: string; amoun
       </View>
       <View style={styles.metricCard}>
         <View style={styles.metricIconWrap}>
-          <AppIcon name="wallet" size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+          <AppIcon name="wallet" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
         </View>
         <AppText variant="caption">Estimated total</AppText>
         <AppText variant="bodyStrong">{amount}</AppText>
       </View>
       <View style={styles.metricCard}>
         <View style={styles.metricIconWrap}>
-          <AppIcon name="shield" size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+          <AppIcon name="shield" size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
         </View>
         <AppText variant="caption">Billing mode</AppText>
         <AppText variant="bodyStrong">Visible upfront</AppText>
@@ -166,7 +166,7 @@ function DriverTrustStrip() {
       ].map((item) => (
         <View key={item.label} style={styles.metricCard}>
           <View style={styles.metricIconWrap}>
-            <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+            <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
           </View>
           <AppText variant="caption">{item.label}</AppText>
           <AppText variant="bodyStrong">{item.value}</AppText>
@@ -186,7 +186,7 @@ function TripMetricRow() {
       ].map((item) => (
         <View key={item.label} style={styles.metricCard}>
           <View style={styles.metricIconWrap}>
-            <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.amber} />
+            <AppIcon name={item.icon} size={18} color={colors.primary.base} secondaryColor={colors.secondary.muted} />
           </View>
           <AppText variant="caption">{item.label}</AppText>
           <AppText variant="bodyStrong">{item.value}</AppText>
@@ -281,7 +281,8 @@ export function CustomerProfileSetupScreen() {
       city_name: city
     });
     dispatch(markProfileComplete());
-    navigation.navigate("CustomerTabs");
+    // Navigation happens automatically via conditional rendering in RootNavigator
+    // when profileComplete becomes true — no manual navigate needed.
     setSaving(false);
   };
 
@@ -517,7 +518,8 @@ export function CustomerBookingReviewScreen() {
       service_type: bookingForm.serviceType,
       instructions: bookingForm.instructions
     });
-    dispatch(setBookings([response.data, ...bookings]));
+    const deduplicated = bookings.filter((b) => b.booking_id !== response.data.booking_id);
+    dispatch(setBookings([response.data, ...deduplicated]));
     dispatch(setActiveBooking(response.data.booking_id));
     navigation.navigate("CustomerBookingStatus");
     setSubmitting(false);
@@ -551,7 +553,7 @@ export function CustomerBookingStatusScreen() {
   if (!booking) {
     return (
       <Screen>
-        <EmptyState title="No active booking found" message="Create a booking from a quote to enter the assignment flow." actionLabel="Go home" visualVariant="booking" onAction={() => navigation.navigate("CustomerTabs")} />
+        <EmptyState title="No active booking found" message="Create a booking from a quote to enter the assignment flow." actionLabel="Go home" visualVariant="booking" onAction={() => navigation.navigate("CustomerHome")} />
       </Screen>
     );
   }
@@ -707,7 +709,7 @@ export function CustomerRatingIssueScreen() {
       rating: Number(rating),
       issue_reason: issue || null
     });
-    navigation.navigate("CustomerTabs");
+    navigation.navigate("CustomerHome");
     setSubmitting(false);
   };
 
