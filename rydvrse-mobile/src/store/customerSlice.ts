@@ -9,6 +9,14 @@ type BookingForm = {
   drop: string;
   scheduleAt: string;
   durationLabel: string;
+  distanceKm: string;
+  predictedDriveMinutes: string;
+  driverPickupDistanceKm: string;
+  driverPickupEtaMinutes: string;
+  transmissionType: string;
+  carType: string;
+  carBrandModel: string;
+  carNumber: string;
   instructions: string;
 };
 
@@ -23,11 +31,19 @@ type CustomerState = {
 const initialState: CustomerState = {
   profileComplete: false,
   bookingForm: {
-    serviceType: "AIRPORT",
+    serviceType: "ONE_WAY_DROP",
     pickup: "Koramangala 4th Block",
-    drop: "Kempegowda International Airport",
+    drop: "Whitefield Main Road",
     scheduleAt: new Date(Date.now() + 1000 * 60 * 90).toISOString(),
-    durationLabel: "90 mins",
+    durationLabel: "105 mins",
+    distanceKm: "31",
+    predictedDriveMinutes: "105",
+    driverPickupDistanceKm: "8",
+    driverPickupEtaMinutes: "24",
+    transmissionType: "AUTOMATIC",
+    carType: "SEDAN",
+    carBrandModel: "Hyundai Verna",
+    carNumber: "KA03AB1234",
     instructions: "Pickup from Gate 2"
   },
   currentQuote: null,
@@ -44,6 +60,7 @@ const customerSlice = createSlice({
     },
     updateBookingForm(state, action: PayloadAction<Partial<BookingForm>>) {
       state.bookingForm = { ...state.bookingForm, ...action.payload };
+      state.currentQuote = null;
     },
     setQuote(state, action: PayloadAction<QuotePayload | null>) {
       state.currentQuote = action.payload;

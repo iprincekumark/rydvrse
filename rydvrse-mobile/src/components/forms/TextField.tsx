@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     color: semantic.text.secondary,
   },
   inputShell: {
-    minHeight: 52,
+    minHeight: 46,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: semantic.border.soft,
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   iconWrap: {
-    width: 46,
+    width: 40,
     alignItems: "center",
     justifyContent: "center",
     paddingTop: spacing.xs,
@@ -89,18 +89,18 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 52,
+    minHeight: 46,
     paddingHorizontal: spacing.md,
     color: semantic.text.primary,
     fontFamily: fontFamily.medium,
-    fontSize: 15,
+    fontSize: 14,
   },
   inputWithIcon: {
     paddingLeft: 0,
   },
   multiline: {
-    minHeight: 110,
-    paddingTop: spacing.md,
+    minHeight: 78,
+    paddingTop: spacing.sm,
     textAlignVertical: "top",
   },
   helperText: {

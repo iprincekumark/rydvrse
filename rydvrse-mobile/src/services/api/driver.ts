@@ -152,13 +152,13 @@ export const driverApi = {
         data: [
           {
             trip_id: "trip-001",
-            title: "Airport Drop",
+            title: "Round Trip",
             amount_paise: 29000,
             payout_status: "PENDING"
           },
           {
             trip_id: "trip-002",
-            title: "Local Ride",
+            title: "One-Way Trip",
             amount_paise: 18000,
             payout_status: "SETTLED"
           }

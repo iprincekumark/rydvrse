@@ -585,10 +585,14 @@ The following models are reused across endpoint groups.
 | `expected_duration_minutes` | integer | No | required for time-based services |
 | `lead_time_bucket` | string | Yes | `FLEX`, `PRIORITY`, `EXPRESS` |
 | `pricing_plan_version` | string | Yes | immutable commercial version |
+| `commercial_model` | string | Yes | pricing algorithm/model code, e.g. `BLR_HYBRID_ONE_WAY_V1` |
+| `pricing_assumptions` | object | Yes | route, pickup-acquisition, vehicle, and estimate-quality inputs used by the quote |
 | `components` | array | Yes | quote breakdown |
 | `subtotal_paise` | integer | Yes | pre-tax or pre-total according to plan |
 | `tax_paise` | integer | Yes | tax amount |
 | `total_paise` | integer | Yes | total amount payable |
+| `driver_payout_preview` | object | No | internal/future-driver preview of earning components; not shown to customers unless product enables it |
+| `savings_summary` | object | No | customer-friendly comparison against configured reference model when available |
 | `valid_until` | string | Yes | quote expiry |
 | `cancellation_policy_summary` | object | Yes | summary text and key thresholds |
 | `serviceability_status` | string | Yes | `SERVICEABLE` or reasoned non-serviceable state |
@@ -1045,6 +1049,17 @@ Request:
 | `drop` | `location` | No | required for one-way and airport |
 | `scheduled_pickup_at` | string | Yes | UTC time |
 | `expected_duration_minutes` | integer | No | required for local and round trip |
+| `rounded_distance_km` | integer | No | required for Bengaluru one-way and round trip when map estimate is available; backend rounds up if exact distance exists in future |
+| `predicted_drive_minutes` | integer | No | traffic-aware route ETA used by hybrid pricing |
+| `driver_pickup_distance_km` | integer | No | estimated nearest eligible driver distance to pickup |
+| `driver_pickup_eta_minutes` | integer | No | estimated driver arrival time; target is `<= 30` for standard Bengaluru fulfillment |
+| `estimated_pickup_cost_paise` | integer | No | optional acquisition cost override; backend estimates if absent |
+| `transmission_type` | string | No | `MANUAL`, `AUTOMATIC` |
+| `car_type` | string | No | `HATCHBACK`, `SEDAN`, `SUV`, `LUXURY` |
+| `car_brand_model` | string | No | customer-entered vehicle model for matching context |
+| `car_number` | string | No | customer-entered registration number for driver verification |
+| `round_trip_wait_minutes` | integer | No | planned waiting time for round trips |
+| `safety_addon_opted` | boolean | No | whether optional safety/secure fee is included; default `true` for launch quote UI |
 | `customer_notes` | string | No | not used for pricing |
 | `lead_time_bucket_override` | string | No | admin only, reject for customers |
 
@@ -1064,7 +1079,7 @@ Example:
   "data": {
     "quote_id": "a0714877-0732-4684-a6ce-6d093220db13",
     "status": "ACTIVE",
-    "service_type": "SCHEDULED_LOCAL",
+    "service_type": "SCHEDULED_ONE_WAY",
     "pickup": {
       "label": "Home",
       "address_line_1": "Koramangala 5th Block",
@@ -1075,26 +1090,104 @@ Example:
     },
     "drop": null,
     "scheduled_pickup_at": "2026-04-11T13:30:00Z",
-    "expected_duration_minutes": 90,
+    "expected_duration_minutes": 105,
     "lead_time_bucket": "FLEX",
     "pricing_plan_version": "blr-v1.0.0",
+    "commercial_model": "BLR_HYBRID_ONE_WAY_V1",
+    "pricing_assumptions": {
+      "rounded_distance_km": 31,
+      "predicted_drive_minutes": 105,
+      "included_distance_km": 20,
+      "included_minutes": 99,
+      "driver_pickup_distance_km": 8,
+      "driver_pickup_eta_minutes": 24,
+      "pickup_arrival_sla_minutes": 30,
+      "transmission_type": "AUTOMATIC",
+      "car_type": "SEDAN",
+      "estimate_quality": "CLIENT_OR_MAP_ESTIMATE"
+    },
     "components": [
       {
-        "code": "LOCAL_BASE_90M",
-        "label": "90 minute base fare",
-        "amount_paise": 32900,
+        "code": "BLR_ONE_WAY_BASE",
+        "label": "Base fare: first 20 km + 75 min",
+        "amount_paise": 29900,
+        "is_tax": false
+      },
+      {
+        "code": "BLR_DISTANCE_20_35",
+        "label": "Distance fee: 11 km x ₹6.50",
+        "amount_paise": 7150,
+        "is_tax": false
+      },
+      {
+        "code": "BLR_TRAFFIC_TIME",
+        "label": "Traffic time buffer",
+        "amount_paise": 1000,
+        "is_tax": false
+      },
+      {
+        "code": "BLR_PICKUP_ACCESS",
+        "label": "Driver pickup access",
+        "amount_paise": 4900,
+        "is_tax": false
+      },
+      {
+        "code": "BLR_ONE_WAY_RELOCATION",
+        "label": "One-way relocation allowance",
+        "amount_paise": 5900,
+        "is_tax": false
+      },
+      {
+        "code": "RYD_SECURE",
+        "label": "Rydvrse Secure",
+        "amount_paise": 1200,
         "is_tax": false
       },
       {
         "code": "GST",
         "label": "Tax",
-        "amount_paise": 5922,
+        "amount_paise": 9009,
         "is_tax": true
       }
     ],
-    "subtotal_paise": 32900,
-    "tax_paise": 5922,
-    "total_paise": 38822,
+    "subtotal_paise": 50050,
+    "tax_paise": 9009,
+    "total_paise": 59059,
+    "driver_payout_preview": {
+      "total_payout_paise": 36920,
+      "components": [
+        {
+          "code": "DRIVER_BASE",
+          "label": "Driver base payout",
+          "amount_paise": 21000
+        },
+        {
+          "code": "DISTANCE_PAYOUT",
+          "label": "Distance payout",
+          "amount_paise": 4400
+        },
+        {
+          "code": "TIME_PAYOUT",
+          "label": "Traffic-time payout",
+          "amount_paise": 720
+        },
+        {
+          "code": "PICKUP_ACCESS_PAYOUT",
+          "label": "Pickup access pass-through",
+          "amount_paise": 4900
+        },
+        {
+          "code": "RELOCATION_PAYOUT",
+          "label": "One-way relocation pass-through",
+          "amount_paise": 5900
+        }
+      ]
+    },
+    "savings_summary": {
+      "reference_total_paise": 66400,
+      "estimated_savings_paise": 7350,
+      "message": "Estimated lower than the reference one-way model for a 31 km Bengaluru daytime trip."
+    },
     "valid_until": "2026-04-10T09:18:41Z",
     "cancellation_policy_summary": {
       "free_until": "2026-04-11T12:30:00Z",

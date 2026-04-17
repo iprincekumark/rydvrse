@@ -30,7 +30,8 @@ export type AppIconName =
   | "eta"
   | "earnings"
   | "id"
-  | "arrowRight";
+  | "arrowRight"
+  | "arrowLeft";
 
 type AppIconProps = {
   name: AppIconName;
@@ -246,6 +247,9 @@ export function AppIcon({
       ) : null}
       {name === "arrowRight" ? (
         <Path d="M6 12H18M18 12L13.8 7.8M18 12L13.8 16.2" {...strokeProps} />
+      ) : null}
+      {name === "arrowLeft" ? (
+        <Path d="M18 12H6M6 12L10.2 7.8M6 12L10.2 16.2" {...strokeProps} />
       ) : null}
     </Svg>
   );

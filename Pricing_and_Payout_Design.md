@@ -215,9 +215,36 @@ The commercial engine may use only the following core inputs for MVP.
 - service type
 - scheduled pickup date/time
 - expected duration for time-based services
+- rounded trip distance in kilometers
+- predicted drive time in minutes
+- predicted driver pickup distance and ETA
+- estimated driver acquisition cost to reach pickup
+- car transmission type
+- car category/type
+- car brand and model
+- customer-selected safety add-on preference
 - lead time bucket
 - airport band if airport service
 - one-way band if one-way drop
+
+### 8.1.1 Bengaluru Launch Quote Inputs
+
+For Bengaluru, distance alone is not sufficient because a 31 km route can behave like a 90-120 minute job during office traffic. The launch quote engine must therefore accept and store a hybrid commercial input set.
+
+| Input | Required | Source | Rule |
+|---|---:|---|---|
+| `rounded_distance_km` | Yes for one-way and round trip | map/distance service or client estimate | round up actual distance, e.g. `34.3 km -> 35 km` |
+| `predicted_drive_minutes` | Yes for one-way and round trip | map ETA service | use traffic-aware ETA, not free-flow ETA |
+| `driver_pickup_distance_km` | Recommended | dispatch pre-estimate | nearest eligible driver distance from pickup |
+| `driver_pickup_eta_minutes` | Recommended | dispatch pre-estimate | must target `<= 30 minutes` for standard service |
+| `estimated_pickup_cost_paise` | Optional override | acquisition estimator | if absent, backend estimates from pickup distance and ETA |
+| `transmission_type` | Yes | customer form | `MANUAL` or `AUTOMATIC` |
+| `car_type` | Yes | customer form | `HATCHBACK`, `SEDAN`, `SUV`, `LUXURY` |
+| `car_brand_model` | Recommended | customer form | used for driver skill matching and ops context |
+| `car_number` | Recommended | customer form | not priced directly in MVP |
+| `round_trip_wait_minutes` | Round trip only | customer form or route planner | planned waiting time between outbound and return |
+
+If a map provider is unavailable, the quote engine may use conservative defaults but must mark the quote metadata with `estimate_quality = FALLBACK`. Fallback quotes are valid for UX continuity but should be monitored separately because they can affect margin.
 
 ### 8.2 Final Fare Inputs
 
@@ -267,6 +294,9 @@ The commercial engine may use only the following core inputs for MVP.
 - time-based quoted duration rounds up to the next 30-minute block
 - extra time billing beyond quoted duration rounds up to the next 30-minute block after grace threshold
 - customer-facing totals must reconcile with stored financial values
+- route distance must round up to the next whole kilometer
+- pickup acquisition cost should round to the nearest `₹5` customer-facing line item
+- platform floor checks must run before returning a quote
 
 ### 9.5 Quote Expiry
 
@@ -384,40 +414,137 @@ Then:
 
 ### Model
 
-- same commercial engine as Scheduled Local for MVP
-- separate service label for customer-facing UX and reporting
+- hybrid distance-time bundle for Bengaluru launch
+- same driver stays with the customer unless ops explicitly reassigns
+- priced as a discounted bundle, not two separate one-way bookings
 
 ### Default Rules
 
-- minimum quoted duration: `90 minutes`
-- extension logic identical to Scheduled Local
+- base bundle includes a larger distance and time allowance than one-way
+- customer pays one pickup acquisition cost, not two
+- return-trip efficiency credit is applied because the driver does not need a second acquisition journey
+- additional waiting beyond planned round-trip wait allowance uses time-based extension blocks
+- extension logic after the quoted bundle remains identical to Scheduled Local
+
+### Bengaluru Round-Trip Formula
+
+`round_trip_gross_before_tax = round_trip_bundle_base + round_trip_distance_fee + round_trip_time_fee + pickup_access_fee + vehicle_adjustment + traffic_risk_fee + safety_fee + night_fee`
+
+Where:
+
+- `round_trip_bundle_base` includes the first `50 km` and first `240 minutes`
+- `round_trip_distance_fee = max(total_distance_km - 50, 0) * round_trip_extra_km_rate`
+- `round_trip_time_fee = max(predicted_total_minutes - 240, 0) * round_trip_extra_minute_rate`
+- `pickup_access_fee` is charged once
+- `traffic_risk_fee` is capped and visible, never a hidden surge multiplier
+- return-trip efficiency is reflected by a lower per-km and per-minute rate than one-way
+
+### Recommended Bengaluru Launch Values
+
+| Component | Default |
+|---|---:|
+| Round-trip base bundle | `₹649` |
+| Included distance | `50 km` |
+| Included time | `240 min` |
+| Extra distance rate | `₹6/km` |
+| Extra time rate | `₹1.50/min` |
+| Pickup access cap | `₹49` |
+| Safety fee | `₹12` |
 
 ### Reasoning
 
-This avoids unnecessary engine complexity in MVP while preserving product clarity.
+Bengaluru round trips are attractive to drivers because the same driver remains utilized instead of spending time finding a return job. Rydvrse should convert that efficiency into a customer discount while still protecting driver earnings through a locked payout preview.
 
 ## 12.3 Scheduled One-Way Drop
 
 ### Model
 
-- base time-backed fare plus explicit return allowance
+- hybrid distance-time fare plus explicit pickup acquisition and relocation protection
 - fixed route expectation
+- lower customer total than reference one-way models while maintaining driver and platform economics
 
 ### Default Rules
 
 - customer is quoted for the selected pickup and drop only
 - pricing includes:
-  - local base fee
-  - return allowance by band
-  - urgency fee if applicable
+  - base distance-time fare
+  - additional distance fee beyond included slab
+  - additional traffic-time fee beyond included slab
+  - driver pickup access fee
+  - relocation allowance for one-way destination imbalance
+  - vehicle complexity adjustment if applicable
+  - traffic risk fee if peak conditions apply
+  - optional safety fee
+  - urgency fee if applicable for short lead time
   - night surcharge if applicable
   - tax
 
-### Customer Fare Formula
+### Bengaluru One-Way Fare Formula
+
+`one_way_gross_before_tax = base_fare + distance_fee + time_fee + pickup_access_fee + relocation_allowance + vehicle_adjustment + traffic_risk_fee + safety_fee + night_fee`
+
+Where:
+
+- `base_fare` covers first `20 km` and first `75 minutes`
+- `distance_fee = slab_20_to_35 + slab_35_plus`
+- `slab_20_to_35 = min(max(rounded_distance_km - 20, 0), 15) * rate_20_to_35`
+- `slab_35_plus = max(rounded_distance_km - 35, 0) * rate_35_plus`
+- `included_minutes = 75 + max(rounded_distance_km - 20, 0) * 2.2`
+- `time_fee = max(predicted_drive_minutes - included_minutes, 0) * extra_minute_rate`
+- `pickup_access_fee = min(max(estimated_driver_pickup_cost, minimum_pickup_access_fee), pickup_access_cap)`
+- `relocation_allowance` protects driver return effort but remains lower than traditional one-way charges
+- `traffic_risk_fee` applies only for peak windows and is capped
+
+### Recommended Bengaluru Launch Values
+
+| Component | Default |
+|---|---:|
+| Base fare | `₹299` |
+| Included distance | `20 km` |
+| Included traffic time | `75 min` |
+| 21-35 km rate | `₹6.50/km` |
+| 36+ km rate | `₹8/km` |
+| Extra traffic minute rate | `₹1.75/min` |
+| Pickup access floor | `₹29` |
+| Pickup access cap | `₹49` |
+| One-way relocation allowance | `₹59` |
+| Peak traffic risk fee cap | `₹39` |
+| Safety fee | `₹12` |
+| Night fee | `₹99` |
+
+### Existing Formula Compatibility
 
 `quoted_service_fee_ex_tax = local_base_fee_90(zone, lead_bucket) + one_way_return_allowance(drop_band)`
 
 `quoted_customer_total = quoted_service_fee_ex_tax + lead_time_fee + night_surcharge + tax`
+
+The legacy band formula remains valid for historical plans and non-Bengaluru fallback plans. Bengaluru launch plans should use the hybrid route model above.
+
+### 31 km One-Way Reference Example
+
+Assumptions:
+
+- route: `31 km`
+- predicted drive time: `105 min`
+- driver pickup acquisition line item: `₹49`
+- non-night, non-peak
+- safety fee enabled
+- tax profile: `18%`
+
+Calculation:
+
+- base fare: `₹299`
+- distance fee: `(31 - 20) * ₹6.50 = ₹71.50`
+- included minutes: `75 + (11 * 2.2) = 99.2 min`
+- traffic time fee: approximately `₹10`, rounded to nearest `₹5` display bucket
+- pickup access fee: `₹49`
+- one-way relocation allowance: `₹59`
+- safety fee: `₹12`
+- subtotal before tax: approximately `₹500.50`
+- GST at `18%`: approximately `₹90.09`
+- customer total: approximately `₹590.59`
+
+The reference one-way model for the same 31 km trip is approximately `₹664` before night charge. Rydvrse is therefore about `₹73.50` cheaper in the standard daytime case while still reserving enough economics for driver payout and platform margin.
 
 ### Final Fare Lock Rule
 
@@ -711,6 +838,55 @@ Where:
 If the route is materially extended by approved customer request:
 
 `final_payout = quoted_payout + approved_extension_blocks * extension_payout_30 + tip_if_any`
+
+### Bengaluru Hybrid One-Way Payout Formula
+
+For Bengaluru one-way bookings, the driver payout should be explainable as a share of useful work rather than a random percentage.
+
+`driver_payout = driver_base + distance_payout + time_payout + pickup_access_payout + relocation_payout + vehicle_bonus + peak_bonus + night_bonus`
+
+Recommended launch values:
+
+| Component | Rule |
+|---|---|
+| Driver base | `₹210` for first `20 km` and `75 min` |
+| Distance payout | `₹4/km` beyond `20 km` |
+| Traffic time payout | `₹1.20/min` beyond included minutes |
+| Pickup access payout | `100%` of pickup access fee |
+| Relocation payout | `100%` of relocation allowance |
+| Vehicle bonus | `₹20` SUV, `₹50` Luxury, `₹20` Automatic if city supply is thin |
+| Peak bonus | `70%` of traffic risk fee |
+| Night bonus | `₹60` from night fee |
+
+For the 31 km example, driver payout is approximately:
+
+- base: `₹210`
+- distance payout: `11 * ₹4 = ₹44`
+- traffic payout: approximately `6 * ₹1.20 = ₹7.20`
+- pickup access payout: `₹49`
+- relocation payout: `₹59`
+- safety/ops does not pass through by default
+- total driver payout: approximately `₹369.20`
+
+This produces a fair short job earning while leaving a contribution margin for support, payment cost, refunds, and platform operations.
+
+## 16.5.1 Bengaluru Hybrid Round-Trip Payout Formula
+
+`round_trip_driver_payout = round_trip_base_payout + extra_distance_payout + extra_time_payout + pickup_access_payout + vehicle_bonus + peak_bonus + night_bonus`
+
+Recommended launch values:
+
+| Component | Rule |
+|---|---|
+| Round-trip base payout | `₹560` for first `50 km` and `240 min` |
+| Extra distance payout | `₹3.75/km` beyond `50 km` |
+| Extra time payout | `₹1.00/min` beyond `240 min` |
+| Pickup access payout | `100%` of pickup access fee |
+| Vehicle bonus | same as one-way |
+| Peak bonus | `70%` of traffic risk fee |
+| Night bonus | `₹60` from night fee |
+
+Round-trip payout is deliberately lower per kilometer than one-way because the driver avoids an unpaid acquisition cycle between two separate jobs. The driver should still see this as a high-quality job because utilization is better and income is predictable.
 
 ## 16.6 Airport Payout Formula
 
@@ -1067,12 +1243,35 @@ The business should report:
 - average refund amount
 - average cancellation revenue
 - contribution margin trend per service type
+- pickup acquisition cost as percentage of subtotal
+- one-way relocation allowance as percentage of subtotal
+- peak traffic risk fee collected versus peak bonus paid
+- quote-to-booking conversion by distance slab
+- Bengaluru 30-minute driver-arrival SLA achievement
+- driver payout per active hour for one-way and round-trip separately
+
+### 22.3.1 Bengaluru Unit Economics Guardrails
+
+The Bengaluru model must not win customers by burning capital. These guardrails apply before any quote is returned:
+
+| Guardrail | Rule |
+|---|---|
+| Minimum platform contribution | subtotal before tax minus payout preview must be `>= ₹65` for one-way and `>= ₹95` for round trip unless approved override is active |
+| Driver arrival SLA | standard quote should assume a driver can reach pickup within `30 min`; otherwise show limited availability or apply ops-controlled manual review |
+| Pickup access cap | customer pickup access fee capped at `₹49` for affordability; excess acquisition cost is absorbed only when margin remains healthy |
+| Night protection | night fee cannot be discounted below the driver night bonus plus support risk allocation |
+| Peak cap | peak traffic risk fee is capped and visible; there is no hidden surge multiplier |
+| Round-trip discount | equivalent round trip must be cheaper than two one-way bookings by at least `18%` where distance/time assumptions are comparable |
+| No negative-margin promo | promotions may not reduce the fare below driver payout plus payment cost plus support reserve |
 
 ## 22.4 Pass-Through Components
 
 These should not be treated as platform margin:
 
 - return allowance if configured as 100% driver pass-through
+- pickup access payout if passed 100% to driver
+- night bonus funded from night fee
+- peak bonus funded from traffic risk fee
 - tip
 - tax
 

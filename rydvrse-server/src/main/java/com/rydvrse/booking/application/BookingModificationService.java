@@ -193,6 +193,17 @@ public class BookingModificationService {
                 drop,
                 command.scheduledPickupAt() == null ? booking.getScheduledPickupAt() : command.scheduledPickupAt(),
                 command.expectedDurationMinutes() == null ? booking.getQuotedDurationMinutes() : command.expectedDurationMinutes(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 command.customerNotes()
         );
     }

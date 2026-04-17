@@ -2,1113 +2,1278 @@
 
 ## Document Control
 
-- **Product:** Rydvrse (Ride-hailing Mobile App)
-- **Version:** 1.0
+- **Product:** Rydvrse
+- **Document Type:** UI/UX redesign and implementation blueprint
+- **Version:** 2.0
 - **Date:** 2026-04-17
-- **Scope:** Customer App, Driver App, Admin Dashboard
-- **Design Reference:** CarGo Rental Car Mobile App Design (Figma Community)
-- **API Reference:** Rydvrse Swagger API v1
+- **Primary App:** React Native / Expo mobile app
+- **Secondary Surfaces:** Future admin/ops web dashboard, driver app refinements
+- **Design Direction:** Uber-inspired usability with a distinct Rydvrse light-green identity
+- **Primary Brand Color Direction:** Zepto-like light green dominance on a clean charcoal/white interface
+- **Implementation Rule:** Improve incrementally on top of the current working system. Do not rewrite the app or break existing auth, quote, booking, trip, driver, and support flows.
 
 ---
 
-## 1. UI/UX Audit of Current System
+## 1. Purpose
 
-### 1.1 What's Working Well
+This document is the design and development blueprint for upgrading Rydvrse into a production-level, enterprise-grade mobility application.
 
-The existing codebase demonstrates strong engineering fundamentals. The centralized theme system at `src/theme/index.ts` provides a single source of truth for design tokens. The component hierarchy (Screen, HeaderBlock, BottomActionBar, SectionCard) shows thoughtful layout architecture. Accessibility basics are already in place via `accessibilityRole`, `accessibilityLabel`, and `accessibilityState` on interactive elements. The responsive breakpoint system using `useWindowDimensions()` covers a range from mobile (390px) to desktop (1100px), and the typography scale uses a single coherent typeface (Manrope) with well-defined semantic variants (hero, title, section, body, caption, overline).
+The goal is not to clone Uber visually. The goal is to learn from Uber's best usability patterns:
 
-### 1.2 Layout and Spacing Problems
+- map-first mental model
+- fast booking
+- clear pickup/drop selection
+- strong location confidence
+- bottom-sheet task flow
+- minimal distractions
+- large touch targets
+- direct CTAs
+- clear trip status
+- calm error handling
 
-**Monochrome color system lacks visual hierarchy.** The current palette is essentially grayscale: primary is `#242424`, secondary is `#898989`, and backgrounds are `#FFFFFF` and `#F5F5F5`. While this creates a clean look, it leaves no room for visual emphasis, brand identity, or emotional connection. Users cannot quickly scan a screen and distinguish between primary actions, information zones, and navigational elements. The CarGo design reference uses a rich blue primary (`#1A73E8` range) with warm accents that create instant visual hierarchy without relying on layout alone.
+Rydvrse must keep its own identity:
 
-**Spacing scale is too compressed.** The current spacing scale runs from 4px to 40px in 8 steps (4, 8, 12, 16, 20, 24, 32, 40). The gaps between mid-range values (16 → 20 → 24) are only 4px apart, which is imperceptible on most screens. This forces developers to use the same few spacing values everywhere, creating visual monotony. The recommended scale should follow a more geometric progression with clearer visual steps.
+- light-green dominant brand language
+- trust-first chauffeur positioning
+- transparent Bengaluru pricing
+- driver fairness visibility
+- scheduled-first reliability
+- polished but not cluttered interface
 
-**Screen layout is too uniform.** Every screen uses the same `Screen` wrapper with identical padding. The home screen, a booking detail screen, and an onboarding screen all feel structurally identical. High-impact screens (home, trip status, payment) should break out of the standard container with full-bleed hero sections, colored headers, or map backgrounds.
-
-**Card component lacks visual variety.** `SectionCard` is the only card component, producing a "stacked boxes" layout everywhere. There's no visual distinction between a booking summary card, a driver info card, a promotional banner, or a settings row. This forces users to read every piece of text to understand what they're looking at.
-
-### 1.3 Visual Hierarchy Problems
-
-**No accent color or brand color.** The app currently has no memorable brand color. Enterprise ride-hailing apps use strong brand colors for instant recognition: Uber uses black + green, Ola uses yellow + green, Lyft uses pink. Rydvrse's `#242424` primary is functionally black, which is generic and forgettable. The CarGo design uses a deep blue with white text on colored surfaces, creating strong contrast and brand presence.
-
-**Buttons are visually monotone.** The `PrimaryButton` comes in two variants: dark filled and light outlined. Both use the same 54px height, same border radius (8px), and same font weight. There's no visual distinction between a "Confirm Booking" button (high-stakes, irreversible) and a "View Details" button (low-stakes, navigational). The CarGo design uses larger, more rounded buttons with gradient fills for primary actions and ghost/text buttons for secondary actions.
-
-**Status indicators are text-heavy.** The `StatusChip` component uses colored backgrounds with text labels, which is functional but not scannable. The current approach requires users to read "CONFIRMED" or "PENDING" rather than recognizing a visual pattern. Adding iconography to status states (checkmark for confirmed, clock for pending, alert for issues) would make status scanning instant.
-
-### 1.4 Missing Modern UX Patterns
-
-The following patterns are absent from the current implementation and are standard in production ride-hailing apps:
-
-- **Pull-to-refresh** on list screens (bookings, earnings, jobs)
-- **Swipe gestures** on cards (swipe to call driver, swipe to cancel)
-- **Bottom sheet modals** for contextual actions (instead of full-screen navigation)
-- **Haptic feedback** on confirmations and critical actions
-- **Animated transitions** between screens (currently uses default React Navigation transitions)
-- **Map integration** as a first-class citizen (currently uses `MapPlaceholderCard`)
-- **Real-time updates** via SSE/WebSocket for trip tracking (API supports SSE at `/trips/{tripId}/tracking/stream`)
-- **Onboarding walkthrough** with illustration-driven slides
-- **Biometric authentication** for returning users
-- **Dark mode** support
-- **Skeleton loading states** exist but are underutilized (only the `Skeleton` component exists, not screen-level skeleton layouts)
-
-### 1.5 Responsiveness Gaps
-
-The responsive system uses width-based breakpoints but doesn't address orientation changes, dynamic type sizes, or safe area variations across devices. The bottom tab bar uses a fixed 76px height regardless of device, which feels oversized on compact phones and undersized on tablets.
+This plan must be completed before UI implementation begins so design, engineering, and product decisions stay aligned.
 
 ---
 
-## 2. Figma Design Breakdown (CarGo Rental Car App)
+## 2. Non-Negotiable Redesign Principles
 
-### 2.1 Design Philosophy
+1. **Functionality first:** No screen should become static mock UI. Every redesigned screen must preserve or improve its current API/state integration.
+2. **Incremental migration:** Replace one surface at a time while keeping the app usable after every stage.
+3. **Map-first customer experience:** The post-login customer home must become a map plus booking bottom sheet, not a card-only dashboard.
+4. **One core action:** The customer product is `Book Driver`. Customer-facing booking options are only `One-way trip` and `Round trip`.
+5. **Transparent pricing:** Bengaluru distance, traffic time, driver pickup access, relocation, GST, and savings messaging must remain visible.
+6. **Compact by default:** Home, Help, and Profile should fit in one phone screen in normal states. Avoid lengthy paragraphs and avoid unnecessary scrolling.
+7. **Small, readable typography:** Use smaller labels and concise copy. Prioritize clear short actions over explanatory blocks.
+8. **Back navigation:** Stack screens must provide a simple Uber-like back action in the top-left or a clear secondary back action.
+9. **Reusable components:** New UI patterns must become reusable primitives and composed components, not one-off screen styling.
+10. **Enterprise readiness:** Loading, error, empty, offline, permission-denied, quote-expired, payment-failed, reassignment, cancellation, and incident states must be designed.
 
-The CarGo design follows a "Premium Minimal" aesthetic: clean surfaces with purposeful use of color, generous whitespace, and high-contrast interactive elements. It balances visual richness with usability, using photographic content (car images) as the primary visual anchor and reserving color for actions and status.
+---
 
-### 2.2 Recommended Color System (Adapted from CarGo for Rydvrse)
+## 3. Current Implementation Audit
 
+## 3.1 Current Mobile Stack
+
+The current mobile app is built with:
+
+- React Native
+- Expo SDK 54
+- React Navigation
+- Redux Toolkit
+- local mock mode support
+- centralized API service modules
+- centralized theme tokens in `rydvrse-mobile/src/theme/index.ts`
+- custom SVG/React Native icon system
+- component folders for cards, common, feedback, inputs, layout, patterns, primitives
+
+Important existing files:
+
+- `rydvrse-mobile/src/navigation/RootNavigator.tsx`
+- `rydvrse-mobile/src/screens/customer/CustomerScreens.tsx`
+- `rydvrse-mobile/src/screens/driver/DriverScreens.tsx`
+- `rydvrse-mobile/src/store/customerSlice.ts`
+- `rydvrse-mobile/src/services/api/customer.ts`
+- `rydvrse-mobile/src/services/api/types.ts`
+- `rydvrse-mobile/src/theme/index.ts`
+
+## 3.2 What Already Works
+
+Current strengths:
+
+- Auth flow exists for customer and driver.
+- Customer profile setup exists.
+- Customer tabs exist for Home, Bookings, Help, and Profile.
+- Customer quote flow exists and is connected to `customerApi.quote`.
+- Booking confirmation flow exists and is connected to `customerApi.createBooking`.
+- Customer booking list and detail screens exist.
+- Driver onboarding, offers, trip, earnings, support, and profile screens exist.
+- Mock mode lets us test the UI without backend runtime dependency.
+- Theme tokens and backward-compatible aliases already exist.
+- Existing components provide a useful foundation:
+  - `Screen`
+  - `HeaderBlock`
+  - `BottomActionBar`
+  - `SectionCard`
+  - `ChoiceCard`
+  - `StatusBanner`
+  - `StatusChip`
+  - `FareBreakdown`
+  - `MapPlaceholderCard`
+  - `Skeleton`
+
+## 3.3 Current Product/UI Gaps
+
+| Area | Current State | Target State |
+|---|---|---|
+| Home screen | Card-based dashboard with services and upcoming booking | Map-first landing screen with booking bottom sheet |
+| Map | Placeholder card only | Interactive map with current location, pickup/drop markers, drag/zoom, route preview |
+| Location search | Text inputs | Google Maps-like search with suggestions, saved/recent locations |
+| Booking entry | Navigate to service setup screen | `Book Driver` from home bottom sheet with only one-way and round-trip |
+| Date/time | Text input ISO/date string | Modern wheel/dial-style date/time picker in bottom sheet |
+| Design identity | Previously blue/neutral token direction | Light-green Rydvrse identity with charcoal/white surfaces |
+| Quote UI | Functional but form-like | Premium fare bottom sheet with assumptions, savings, and trust explanation |
+| Responsiveness | Basic flex wrapping | Explicit phone/tablet/desktop responsive layouts |
+| Screen architecture | Customer and driver screens are large monolithic files | Incrementally split screens and patterns |
+| API integration | Working service modules, some hardcoded demo quote inputs | Real selected location data mapped into quote payload |
+| Error states | Present but not consistently applied | Every major flow has loading/error/empty/permission/offline states |
+| Accessibility | Some labels and roles | Full baseline checklist per interactive component |
+
+## 3.4 Current Technical Risks
+
+- `CustomerScreens.tsx` is too large and mixes screen logic, inline components, styling, and flow behavior.
+- Current map behavior is not implemented; map is represented by placeholder UI.
+- The quote flow currently uses typed/manual fields and demo location coordinates for backend quote requests.
+- Service type naming differs between UI and backend:
+  - UI: `ONE_WAY_DROP`
+  - Backend: `SCHEDULED_ONE_WAY`
+  - UI: `ROUND_TRIP`
+  - Backend: `SCHEDULED_ROUND_TRIP`
+- The app must keep the compatibility mapping while improving UX.
+- Some primitives and legacy components overlap, so migration must avoid duplicated design systems.
+- Expo Go testing can be sensitive to network/tunnel issues; the UI should remain testable in mock mode and LAN/local mode.
+
+---
+
+## 4. Target Experience Summary
+
+## 4.1 Customer App Target
+
+Post-login default screen:
+
+- top half: interactive map
+- bottom half: ride booking sheet
+- quick pickup/drop selection
+- one-way and round-trip selector
+- Book Now CTA
+- schedule selector
+- fare preview once enough inputs exist
+- current/upcoming booking banner when applicable
+
+Primary customer journey:
+
+1. Customer logs in.
+2. Customer lands on map-first home.
+3. App asks for location permission.
+4. If permission granted, map centers on current location and pre-fills pickup.
+5. If permission denied, customer can manually search pickup.
+6. Customer searches/selects drop.
+7. Customer chooses one-way or round-trip.
+8. Customer chooses now/later and date/time.
+9. App calculates route distance/time and creates quote.
+10. Customer reviews itemized fare.
+11. Customer confirms booking.
+12. Assignment, driver, trip, payment, rating, and support flows continue using existing logic.
+
+## 4.2 Driver App Target
+
+Driver app remains operationally focused, but should align visually:
+
+- green availability state
+- map-aware pickup/trip surfaces
+- clearer job offer cards
+- earning transparency
+- simple arrival/start/complete actions
+- incident/support entry always visible during active jobs
+
+Driver app redesign should follow customer foundation after the customer flow stabilizes.
+
+## 4.3 Admin/Ops Target
+
+Admin dashboard is not the immediate mobile redesign priority, but the UI system should support future:
+
+- live map of bookings/drivers
+- rescue queue
+- delayed-driver queue
+- refund queue
+- pricing and serviceability config
+- incident timeline
+- reports
+
+---
+
+## 5. Rydvrse Design System Direction
+
+## 5.1 Brand Personality
+
+Rydvrse should feel:
+
+- fast like Uber
+- fresh like Zepto
+- calm like an enterprise mobility tool
+- trustworthy like a chauffeur service
+- operationally precise, not playful in a childish way
+
+Tone:
+
+- direct
+- premium
+- minimal
+- reassuring
+- data-transparent
+
+## 5.2 Color Palette
+
+The UI should use one dominant light-green system with charcoal and white.
+
+Recommended production palette:
+
+| Role | Token | Hex | Usage |
+|---|---|---|---|
+| Primary Green | `green.500` | `#B7F34D` | Main CTA surfaces, active tabs, selected states |
+| Strong Green | `green.600` | `#8FD62F` | Pressed states, progress, map route accents |
+| Deep Green | `green.800` | `#315C14` | High-contrast text on light-green tints if needed |
+| Green Soft | `green.100` | `#F0FFD8` | Cards, selected chips, soft backgrounds |
+| Green Mist | `green.50` | `#FAFFF2` | App background accents |
+| Charcoal | `ink.900` | `#101312` | Primary text and dark CTA text |
+| Graphite | `ink.700` | `#343A36` | Secondary headings and icons |
+| Muted Gray | `ink.500` | `#6B716D` | Body/supporting text |
+| Line Gray | `ink.200` | `#E5E8E2` | Hairline borders and separators |
+| Surface | `surface.0` | `#FFFFFF` | Cards and bottom sheets |
+| App Canvas | `surface.50` | `#F7F8F4` | Screen background |
+| Danger | `danger.500` | `#E5484D` | Cancellation, payment failure, SOS |
+| Warning | `warning.500` | `#F59E0B` | Delays, quote expiry, traffic risk |
+| Success | `success.500` | `#16A34A` | Completed and confirmed states |
+| Info | `info.500` | `#2563EB` | Links, external map/help information |
+
+Important accessibility rule:
+
+- Do not put white text on `#B7F34D`; contrast is weak.
+- Primary green buttons should use charcoal text.
+- Dark buttons can use white text only when the background is charcoal.
+
+## 5.3 Visual Language
+
+Rydvrse should use:
+
+- clean white bottom sheets over map
+- light-green CTA blocks
+- rounded but disciplined cards
+- crisp charcoal text
+- map surfaces with subtle route overlays
+- green route line and custom pickup/drop pins
+- minimal icons with consistent stroke weight
+- no heavy gradients unless used subtly in hero/trust surfaces
+
+Avoid:
+
+- too much neon
+- random multi-color decoration
+- decorative illustrations on the map-first home
+- purple/dark-mode bias
+- dense card stacks that hide the primary booking action
+
+## 5.4 Typography
+
+Current Manrope is acceptable and should remain to avoid unnecessary font churn.
+
+Recommended hierarchy:
+
+| Role | Size | Weight | Usage |
+|---|---:|---:|---|
+| Display | 28-30 | 800 | Auth/marketing style headers only |
+| Screen Title | 20-22 | 800 | Main screen headings |
+| Sheet Title | 20 | 800 | Booking bottom sheet headers |
+| Section Title | 16 | 700 | Card/section titles |
+| Body | 14 | 500 | Normal text |
+| Body Strong | 14 | 700 | Important values |
+| Caption | 11-12 | 600 | Metadata, labels, helper text |
+| CTA | 14-15 | 800 | Buttons |
+
+## 5.5 Spacing and Radius
+
+Use an 8px-based spacing system:
+
+| Token | Value |
+|---|---:|
+| `space.1` | 4 |
+| `space.2` | 8 |
+| `space.3` | 12 |
+| `space.4` | 16 |
+| `space.5` | 20 |
+| `space.6` | 24 |
+| `space.7` | 32 |
+| `space.8` | 40 |
+| `space.9` | 48 |
+| `space.10` | 64 |
+
+Radius:
+
+- small controls: `10-12`
+- input fields: `14-16`
+- cards: `18-22`
+- bottom sheets: `24-30` top radius
+- pills: `999`
+
+## 5.6 Motion
+
+Motion should be purposeful:
+
+- bottom sheet spring open/close
+- map pin settle animation after selection
+- CTA press scale
+- quote card fade/slide in after API success
+- progress step transitions during assignment/trip
+- skeleton shimmer for loading states
+
+Avoid:
+
+- decorative looping animations
+- random bouncing icons
+- animations that delay booking
+
+---
+
+## 6. Home Screen Redesign
+
+## 6.1 Purpose
+
+The customer home screen becomes the main booking surface after login.
+
+It should answer immediately:
+
+- Where am I?
+- Where do I want to go?
+- Am I booking one-way or round-trip?
+- Do I want now or scheduled?
+- What will it cost?
+- What is the next action?
+
+## 6.2 Layout
+
+Mobile layout:
+
+```text
++----------------------------------+
+| Status/Safe Area                 |
+| Floating top controls            |
+|  - menu/profile                  |
+|  - current city                  |
+|  - locate me                     |
++----------------------------------+
+|                                  |
+|          Interactive Map         |
+|       pickup/drop markers        |
+|       route preview when set     |
+|                                  |
++----------------------------------+
+| Bottom Booking Sheet             |
+| - Where from?                    |
+| - Where to?                      |
+| - One-way / Round-trip           |
+| - Now / Schedule                 |
+| - Quote preview or Book Now CTA  |
++----------------------------------+
+| Bottom Tabs                      |
++----------------------------------+
 ```
-Primary Palette:
-  brand:        #1B6EF3   (vibrant blue - primary brand color)
-  brandStrong:  #1558C9   (pressed/active state)
-  brandSoft:    #EBF2FE   (light tint for backgrounds)
-  brandSubtle:  #F5F8FF   (very light tint for surfaces)
 
-Neutral Palette:
-  gray900:      #1A1D21   (headings, primary text)
-  gray700:      #3D4350   (secondary text, labels)
-  gray500:      #6B7280   (placeholder text, muted)
-  gray300:      #D1D5DB   (borders, dividers)
-  gray100:      #F3F4F6   (muted backgrounds)
-  gray50:       #F9FAFB   (elevated surfaces)
-  white:        #FFFFFF   (base surface)
+Target proportions:
 
-Semantic Palette:
-  success:      #059669   (confirmations, completed)
-  successSoft:  #ECFDF5
-  warning:      #D97706   (delays, cautions)
-  warningSoft:  #FFFBEB
-  danger:       #DC2626   (errors, cancellations, SOS)
-  dangerSoft:   #FEF2F2
-  info:         #2563EB   (informational, in-progress)
-  infoSoft:     #EFF6FF
+- map: `45-55%` of screen height
+- booking sheet: `45-55%` of screen height
+- sheet can expand to `85-90%` when searching/selecting
+- tabs remain visible only when sheet is in default state; during focused booking flow, bottom tabs may hide
 
-Accent (optional for differentiation):
-  accent:       #F59E0B   (amber - promotions, highlights)
-  accentSoft:   #FEF3C7
-```
+## 6.3 Home Screen States
 
-### 2.3 Typography System
+| State | UI Behavior |
+|---|---|
+| First load | Map skeleton plus booking sheet skeleton |
+| Location permission prompt | Friendly permission card inside bottom sheet |
+| Permission granted | Center map on current location and prefill pickup |
+| Permission denied | Show manual pickup search as primary path |
+| No internet | Preserve last known city/saved locations; disable quote CTA |
+| Active booking exists | Show compact active booking pill over the map and continue trip CTA |
+| Upcoming booking exists | Show small upcoming booking card below booking controls |
+| Quote loading | CTA becomes loading, fare preview skeleton appears |
+| Quote ready | Fare preview row appears with total and "Review fare" CTA |
+| Quote expired | Warning banner with refresh quote CTA |
+| Non-serviceable route | Inline error near location fields with edit CTA |
 
-The CarGo design uses a combination of a geometric sans-serif for headings and a humanist sans for body text. Adapting this for Rydvrse while keeping Manrope (which is excellent):
+## 6.4 Booking Sheet Default Content
 
-```
-Display:
-  displayLg:    { size: 32, weight: 800, lineHeight: 38, tracking: -0.8 }
-  displaySm:    { size: 26, weight: 800, lineHeight: 32, tracking: -0.5 }
+Default collapsed sheet:
 
-Heading:
-  headingLg:    { size: 22, weight: 700, lineHeight: 28, tracking: -0.3 }
-  headingSm:    { size: 18, weight: 700, lineHeight: 24, tracking: -0.15 }
+- compact title: `Book Driver`
+- pickup field
+- drop field
+- segmented control:
+  - One-way trip
+  - Round trip
+- schedule row:
+  - Now
+  - Later
+- compact route row: distance and traffic ETA
+- primary CTA:
+  - `Get fare`
 
-Body:
-  bodyLg:       { size: 16, weight: 500, lineHeight: 24 }
-  bodyMd:       { size: 15, weight: 500, lineHeight: 22 }
-  bodySm:       { size: 14, weight: 500, lineHeight: 20 }
-  bodyStrong:   { size: 15, weight: 600, lineHeight: 22 }
+## 6.5 Booking Sheet Expanded Search Mode
 
-Utility:
-  caption:      { size: 12, weight: 500, lineHeight: 16, color: gray500 }
-  overline:     { size: 11, weight: 600, lineHeight: 16, tracking: 0.8, uppercase }
-  label:        { size: 14, weight: 600, lineHeight: 20 }
-  tabLabel:     { size: 11, weight: 600, lineHeight: 14 }
-```
+When pickup/drop field is tapped:
 
-### 2.4 Spacing Scale (Revised)
+- bottom sheet expands to near full screen
+- search field focused
+- map remains visible behind dim/blur backdrop or compressed top strip
+- recent locations appear
+- saved locations appear
+- location suggestions appear as user types
+- current location appears as quick action
+- selected item updates booking form and map marker
 
-Replace the current compressed scale with a geometric progression that produces clearer visual steps:
+## 6.6 Map Controls
 
-```
-space-1:    4px    (inline element padding, icon gaps)
-space-2:    8px    (tight element spacing, chip padding)
-space-3:    12px   (form field inner padding, list item gaps)
-space-4:    16px   (standard component padding, section gaps)
-space-5:    20px   (card padding, screen horizontal margin)
-space-6:    24px   (section separation)
-space-7:    32px   (major section breaks)
-space-8:    40px   (screen vertical padding)
-space-9:    48px   (hero section padding)
-space-10:   64px   (screen-level breathing room)
-```
+Required controls:
 
-### 2.5 Component Patterns Extracted from CarGo
+- locate me button
+- map recenter button after user drags
+- pickup/drop marker distinction
+- route line after both locations are selected
+- drag-to-adjust pin mode
+- current city badge
 
-**Buttons:**
-- Primary: 52px height, 12px border-radius, brand blue fill, white text, bold weight. Pressed state darkens 15%. Includes optional leading/trailing icon.
-- Secondary: 52px height, 12px border-radius, white fill, 1px gray300 border, gray900 text. Pressed state: brandSoft background.
-- Ghost: No background or border, brand blue text, used inline.
-- Danger: Same as primary but danger red fill. Used only for destructive actions (cancel booking, SOS).
-- Icon Button: 44px circle, gray100 background, centered icon. Used for back navigation, close, and contextual actions.
+Optional later:
 
-**Cards:**
-- Surface Card: white background, 1px gray200 border, 16px border-radius, 16px padding, subtle shadow (0 1px 3px rgba(0,0,0,0.06)). Used for general content grouping.
-- Elevated Card: white background, no border, 16px border-radius, stronger shadow (0 4px 12px rgba(0,0,0,0.08)). Used for booking summaries and actionable items.
-- Feature Card: brand gradient background (brandSoft → white), 16px border-radius, no border. Used for promotional content and CTAs on the home screen.
-- Driver Card: horizontal layout with avatar, name/rating/vehicle on the left, call/chat icons on the right. 60px avatar with 30px rounded corners.
+- traffic overlay
+- driver supply heat indicator for ops/admin only
+- pickup confidence ring
 
-**Navigation:**
-- Bottom Tab Bar: 64px height + safe area, white background, top border (1px gray200), 5 items max. Active state: brand blue icon + label. Inactive: gray500 icon + label. No background highlight on active tab.
-- Top Navigation: transparent or white, back arrow (24px), centered title (headingSm), optional right-side action button. Status bar: dark content on light screens, light content on dark/colored headers.
-- Bottom Sheet: 50% to 90% screen height, 24px top border-radius, 40px drag handle centered at top, backdrop blur (rgba(0,0,0,0.3)). Replaces full-screen modals for actions like "Select Service Type", "Cancel Booking", "Rate Trip".
+---
 
-**Forms:**
-- Text Input: 52px height, 12px border-radius, 1px gray300 border, 16px horizontal padding. Focus state: 2px brand blue border. Error state: danger red border + error message below. Label above (label style, gray700). Optional left icon (20px, gray500).
-- Selector: Same as text input but with right chevron icon, non-editable, opens bottom sheet.
-- Date/Time Picker: Native picker wrapped in bottom sheet with confirm/cancel buttons.
+## 7. Map and Location Behavior
 
-**Status Indicators:**
-- Chip: Rounded pill (999px radius), 8px vertical + 12px horizontal padding, colored background + matching text. Each state has its own background/text pair from the semantic palette.
-- Banner: Full-width, 12px border-radius, 12px padding, left-aligned icon + text. Same semantic coloring as chips but larger and more prominent.
-- Progress Steps: Horizontal dots or vertical timeline. Active step uses brand blue, completed uses success green with checkmark, upcoming uses gray300.
+## 7.1 Required Capabilities
 
-**Maps:**
-- Map takes up 40-60% of screen on location-centric screens (pickup, trip tracking).
-- Overlaid UI sits at the bottom in a bottom sheet that can be dragged up.
-- Route shown with brand blue polyline, 4px width. Pickup and drop markers use custom SVG pins in brand colors.
+The app should support:
 
-### 2.6 Design Tokens Summary
+- ask location permission with clear reason
+- get current location
+- manually search pickup/drop
+- select suggestion
+- save recent searches
+- use saved locations
+- drag map to adjust pin
+- show selected location title/address
+- compute distance/time estimate
+- pass distance/time/pickup/drop into quote API
+
+## 7.2 Recommended Libraries
+
+Use Expo-compatible libraries:
+
+- `expo-location` for location permission and GPS
+- `react-native-maps` for native map rendering
+- backend/proxy or provider SDK for autocomplete/geocoding
+- `@gorhom/bottom-sheet` is already available and should be used for sheet patterns
+
+Important:
+
+- Keep `MapPlaceholderCard` as a fallback component for web/mock/offline environments.
+- Do not block the entire app if maps fail to load.
+
+## 7.3 Location Data Model
+
+UI location object:
 
 ```typescript
-// Proposed theme/tokens.ts structure
-export const tokens = {
-  color: { /* as defined in 2.2 */ },
-  space: { /* as defined in 2.4 */ },
-  radius: {
-    none: 0,
-    sm: 6,
-    md: 12,
-    lg: 16,
-    xl: 20,
-    full: 9999
-  },
-  shadow: {
-    sm: { offset: [0, 1], blur: 3, color: 'rgba(0,0,0,0.06)' },
-    md: { offset: [0, 4], blur: 12, color: 'rgba(0,0,0,0.08)' },
-    lg: { offset: [0, 8], blur: 24, color: 'rgba(0,0,0,0.10)' },
-    xl: { offset: [0, 16], blur: 40, color: 'rgba(0,0,0,0.12)' }
-  },
-  animation: {
-    fast: 150,
-    normal: 250,
-    slow: 400,
-    spring: { damping: 20, stiffness: 180 }
-  }
+type UiLocation = {
+  id?: string;
+  label: string;
+  addressLine1: string;
+  addressLine2?: string;
+  landmark?: string;
+  cityId: string;
+  latitude: number;
+  longitude: number;
+  source: "gps" | "search" | "saved" | "recent" | "manual" | "map_drag";
+};
+```
+
+Quote payload mapping:
+
+```typescript
+pickup: {
+  label,
+  address_line_1,
+  address_line_2,
+  landmark,
+  city_id,
+  latitude,
+  longitude
 }
 ```
 
----
+## 7.4 Search UX
 
-## 3. Component Architecture (Frontend)
+Search should feel like Google Maps:
 
-### 3.1 Current Problems
+- immediate focus
+- clear button
+- suggestions below field
+- recent/saved locations before typing
+- current location quick action
+- suggestion row includes icon, title, subtitle, distance if known
+- search error appears inline, not as alert
+- selected result closes sheet and updates marker
 
-The biggest architectural issue is that `CustomerScreens.tsx` is a single 40KB+ file containing all customer screens, inline components, and business logic. This is unmaintainable, untestable, and prevents code splitting. The same pattern likely exists in `DriverScreens.tsx`. Individual screens should be separate files with their own concerns.
+Suggestion groups:
 
-### 3.2 Proposed Folder Structure
+- Current location
+- Saved
+- Recent
+- Search results
 
-```
-src/
-├── assets/
-│   ├── brand/              (BrandMark, BrandLockup — keep as-is)
-│   ├── icons/              (AppIcon, ServiceIcon — keep as-is)
-│   ├── illustrations/      (EmptyStateArtwork, HeaderArtwork — keep as-is)
-│   └── images/             (NEW: static images, car photos, map assets)
-│
-├── components/
-│   ├── primitives/         (NEW: atomic-level components)
-│   │   ├── Text.tsx           (replaces AppText, adds all variants)
-│   │   ├── Button.tsx         (Primary, Secondary, Ghost, Danger, Icon variants)
-│   │   ├── IconButton.tsx     (circular icon-only button)
-│   │   ├── Chip.tsx           (status chips with icons)
-│   │   ├── Badge.tsx          (notification dots, counts)
-│   │   ├── Divider.tsx        (horizontal rule with optional label)
-│   │   ├── Spacer.tsx         (declarative spacing)
-│   │   └── Avatar.tsx         (driver/customer avatars with fallback)
-│   │
-│   ├── inputs/             (NEW: form-specific components)
-│   │   ├── TextField.tsx      (enhanced from existing)
-│   │   ├── SearchField.tsx    (with clear button, suggestions)
-│   │   ├── PhoneInput.tsx     (country code + number for OTP)
-│   │   ├── OtpInput.tsx       (individual digit boxes)
-│   │   ├── LocationPicker.tsx (address search with map preview)
-│   │   ├── DateTimePicker.tsx (bottom sheet date/time selection)
-│   │   ├── Selector.tsx       (dropdown-like, opens bottom sheet)
-│   │   └── StarRating.tsx     (interactive rating input)
-│   │
-│   ├── cards/              (EXPANDED: purpose-specific cards)
-│   │   ├── SurfaceCard.tsx    (generic container — replaces SectionCard)
-│   │   ├── BookingCard.tsx    (extracted from CustomerScreens)
-│   │   ├── DriverInfoCard.tsx (avatar, name, rating, vehicle, CTA)
-│   │   ├── QuoteSummaryCard.tsx (fare breakdown display)
-│   │   ├── ServiceTypeCard.tsx  (replaces ChoiceCard for services)
-│   │   ├── EarningCard.tsx    (driver earnings display)
-│   │   ├── OfferCard.tsx      (job offer for drivers)
-│   │   ├── TripCard.tsx       (active trip summary)
-│   │   └── PromoCard.tsx      (promotional/feature highlight)
-│   │
-│   ├── layout/             (ENHANCED: structural components)
-│   │   ├── Screen.tsx         (enhanced with variant props)
-│   │   ├── Header.tsx         (replaces HeaderBlock, adds color variants)
-│   │   ├── BottomBar.tsx      (replaces BottomActionBar)
-│   │   ├── BottomSheet.tsx    (NEW: draggable modal sheet)
-│   │   ├── KeyboardAvoid.tsx  (NEW: keyboard-aware wrapper)
-│   │   ├── Section.tsx        (NEW: titled section with optional CTA)
-│   │   └── Row.tsx            (NEW: horizontal layout helper)
-│   │
-│   ├── feedback/           (NEW: user feedback components)
-│   │   ├── Skeleton.tsx       (enhanced with preset shapes)
-│   │   ├── ScreenSkeleton.tsx (NEW: full-screen skeleton layouts)
-│   │   ├── Toast.tsx          (NEW: non-blocking notifications)
-│   │   ├── EmptyState.tsx     (enhanced from existing)
-│   │   ├── ErrorState.tsx     (NEW: error with retry)
-│   │   ├── Banner.tsx         (replaces StatusBanner, adds dismiss)
-│   │   └── ProgressSteps.tsx  (NEW: multi-step progress indicator)
-│   │
-│   ├── maps/               (NEW: map-related components)
-│   │   ├── MapView.tsx        (wrapper around react-native-maps)
-│   │   ├── RouteOverlay.tsx   (pickup → drop polyline)
-│   │   ├── LocationMarker.tsx (custom pin component)
-│   │   └── MapBottomSheet.tsx (map + bottom sheet combo layout)
-│   │
-│   └── patterns/           (NEW: composed multi-component patterns)
-│       ├── BookingFlow.tsx    (step indicator + content + action bar)
-│       ├── TripTimeline.tsx   (vertical timeline: booked → assigned → pickup → drop)
-│       ├── FareBreakdown.tsx  (itemized fare table)
-│       ├── SignalStrip.tsx    (trust indicators — extracted)
-│       └── ContactBar.tsx     (call + chat + SOS action bar)
-│
-├── screens/
-│   ├── customer/
-│   │   ├── auth/
-│   │   │   ├── LoginScreen.tsx
-│   │   │   ├── OtpScreen.tsx
-│   │   │   └── ProfileSetupScreen.tsx
-│   │   ├── home/
-│   │   │   ├── HomeScreen.tsx
-│   │   │   └── ServiceSetupScreen.tsx
-│   │   ├── booking/
-│   │   │   ├── QuoteScreen.tsx
-│   │   │   ├── BookingReviewScreen.tsx
-│   │   │   ├── BookingStatusScreen.tsx
-│   │   │   ├── BookingDetailScreen.tsx
-│   │   │   └── BookingListScreen.tsx
-│   │   ├── trip/
-│   │   │   ├── AssignedDriverScreen.tsx
-│   │   │   ├── StartTripScreen.tsx
-│   │   │   ├── ActiveTripScreen.tsx
-│   │   │   └── TripCompleteScreen.tsx
-│   │   ├── payment/
-│   │   │   ├── PaymentScreen.tsx
-│   │   │   └── InvoiceScreen.tsx
-│   │   ├── support/
-│   │   │   ├── SupportHomeScreen.tsx
-│   │   │   ├── CreateTicketScreen.tsx
-│   │   │   └── TicketDetailScreen.tsx
-│   │   └── profile/
-│   │       ├── ProfileScreen.tsx
-│   │       ├── SavedLocationsScreen.tsx
-│   │       └── SettingsScreen.tsx
-│   │
-│   ├── driver/
-│   │   ├── auth/
-│   │   │   ├── LoginScreen.tsx
-│   │   │   └── OtpScreen.tsx
-│   │   ├── onboarding/
-│   │   │   ├── OnboardingFormScreen.tsx
-│   │   │   ├── DocumentUploadScreen.tsx
-│   │   │   └── ApprovalStatusScreen.tsx
-│   │   ├── home/
-│   │   │   └── DashboardScreen.tsx
-│   │   ├── jobs/
-│   │   │   ├── OffersScreen.tsx
-│   │   │   ├── AssignmentDetailScreen.tsx
-│   │   │   └── UpcomingJobsScreen.tsx
-│   │   ├── trip/
-│   │   │   ├── PickupScreen.tsx
-│   │   │   ├── AwaitingStartScreen.tsx
-│   │   │   ├── ActiveTripScreen.tsx
-│   │   │   └── TripCompleteScreen.tsx
-│   │   ├── earnings/
-│   │   │   ├── EarningsSummaryScreen.tsx
-│   │   │   └── LedgerScreen.tsx
-│   │   ├── support/
-│   │   │   ├── SupportHomeScreen.tsx
-│   │   │   └── CreateTicketScreen.tsx
-│   │   └── profile/
-│   │       ├── ProfileScreen.tsx
-│   │       └── DocumentsScreen.tsx
-│   │
-│   └── shared/
-│       ├── RolePickerScreen.tsx
-│       └── OnboardingWalkthrough.tsx   (NEW)
-│
-├── hooks/                  (NEW: custom hooks)
-│   ├── useApi.ts              (generic fetch + loading/error state)
-│   ├── useAuth.ts             (login/logout/token refresh)
-│   ├── useBooking.ts          (booking CRUD operations)
-│   ├── useTrip.ts             (trip tracking + SSE stream)
-│   ├── useLocation.ts         (device GPS)
-│   ├── useBottomSheet.ts      (bottom sheet state management)
-│   ├── useRefresh.ts          (pull-to-refresh logic)
-│   └── useHaptic.ts           (haptic feedback wrapper)
-│
-├── navigation/
-│   ├── RootNavigator.tsx
-│   ├── CustomerNavigator.tsx  (extracted from monolith)
-│   ├── DriverNavigator.tsx    (extracted from monolith)
-│   └── types.ts
-│
-├── services/
-│   └── api/                (keep existing structure, enhance)
-│       ├── client.ts
-│       ├── auth.ts
-│       ├── customer.ts
-│       ├── driver.ts
-│       ├── admin.ts        (NEW: admin API module)
-│       └── types.ts
-│
-├── store/                  (keep Redux Toolkit, add async)
-│   ├── index.ts
-│   ├── sessionSlice.ts
-│   ├── customerSlice.ts
-│   ├── driverSlice.ts
-│   └── middleware/
-│       └── apiMiddleware.ts   (NEW: centralized error handling)
-│
-├── theme/
-│   ├── tokens.ts           (NEW: raw token values)
-│   ├── index.ts            (re-export composed theme)
-│   └── darkTheme.ts        (NEW: dark mode overrides)
-│
-└── utils/
-    ├── format.ts           (keep existing)
-    ├── validation.ts       (NEW: form validation helpers)
-    ├── storage.ts          (NEW: AsyncStorage wrapper)
-    └── haptics.ts          (NEW: haptic feedback utilities)
-```
+## 7.5 Permission UX
 
-### 3.3 Key Architectural Decisions
+Permission copy:
 
-**Split monolith screen files.** The most impactful refactor is breaking `CustomerScreens.tsx` and `DriverScreens.tsx` into individual screen files. Each screen becomes its own file with its own styles and concerns. Shared sub-components (like `BookingCard`, `SectionTitle`) get extracted to the `components/` directory.
+- Title: "Use your location for faster pickup"
+- Body: "Rydvrse uses your location to place the pickup pin. You can still search manually."
+- CTAs:
+  - `Allow location`
+  - `Search manually`
 
-**Component composition over configuration.** Instead of one `PrimaryButton` with boolean flags (`secondary`, `disabled`, `danger`), create a `Button` component with a `variant` prop: `<Button variant="primary">`, `<Button variant="ghost">`, `<Button variant="danger">`. This is more readable and extensible.
+If denied:
 
-**Custom hooks for API integration.** Instead of calling API functions directly in screen components and managing loading/error states manually in each screen, create custom hooks like `useBooking()` that encapsulate the API call, loading state, error handling, and data caching. This eliminates duplicated loading/error state boilerplate across screens.
-
-**Bottom sheet as a first-class pattern.** Many flows that currently navigate to full-screen modals (service selection, cancellation confirmation, rating) should use bottom sheets instead. This keeps the user's context visible and feels more native.
+- do not nag repeatedly
+- show "Location is off" compact banner
+- allow manual pickup
+- provide "Open settings" only where supported
 
 ---
 
-## 4. API Integration Strategy
+## 8. Date and Time Selection
 
-### 4.1 API-to-Screen Mapping
+## 8.1 Target UX
 
-| Screen | API Endpoints | Data Flow |
-|--------|---------------|-----------|
-| **Customer Home** | `GET /customers/me/home`, `GET /bookings` | Fetch on mount + pull-to-refresh. Show upcoming bookings, active trip banner, service grid. |
-| **Login / OTP** | `POST /auth/otp/request`, `POST /auth/otp/verify` | Two-step flow. Step 1: phone → OTP request. Step 2: OTP code → verify → hydrate session. |
-| **Profile Setup** | `PATCH /customers/me` | One-time setup after first login. Collect name, email, city. |
-| **Service Setup** | `POST /config/serviceability/check` | Validate pickup/drop locations are in service area before allowing quote creation. |
-| **Quote** | `POST /quotes`, `GET /quotes/{quoteId}` | Create quote → show fare breakdown. Poll or re-fetch if quote approaches expiry. |
-| **Booking Review** | `POST /bookings` | Confirm booking from quote. Requires Idempotency-Key. Show confirmation animation on success. |
-| **Booking Status** | `GET /bookings/{bookingId}` | Poll every 15s during assignment phase. Show progress steps. |
-| **Assigned Driver** | `GET /bookings/{bookingId}`, `GET /trips/{tripId}` | Show driver details from booking response. Transition to trip tracking when trip starts. |
-| **Active Trip** | `GET /trips/{tripId}/tracking/stream` (SSE) | Real-time location updates via Server-Sent Events. Show map with moving marker. |
-| **Trip Start Confirmation** | `POST /bookings/{bookingId}/start-confirmation` | Customer confirms trip start. Required before billing begins. |
-| **Payment** | `POST /bookings/{bookingId}/payment-orders` | Create Razorpay/payment session. Handle success/failure webhooks. |
-| **Rating** | `POST /bookings/{bookingId}/ratings` | Star rating + optional tags + comment. Show after trip completion. |
-| **Invoice** | `GET /bookings/{bookingId}/invoice` | Download/display receipt after payment. |
-| **Booking List** | `GET /bookings` | Paginated list with status filters. Pull-to-refresh. |
-| **Booking Detail** | `GET /bookings/{bookingId}` | Full booking info with timeline, fare, driver details. |
-| **Booking Cancel** | `GET /bookings/{bookingId}/cancellation-preview`, `POST /bookings/{bookingId}/cancel` | Two-step: preview penalty → confirm cancel. |
-| **Booking Modify** | `POST /bookings/{bookingId}/modification-preview`, `POST /bookings/{bookingId}/modify` | Two-step: preview price change → confirm modification. |
-| **Support** | `GET /support/tickets`, `POST /support/tickets`, `GET /support/tickets/{ticketId}` | List tickets, create new ticket with category/severity, view details. |
-| **Saved Locations** | `GET/POST/PATCH/DELETE /customers/me/saved-locations` | CRUD for favorite addresses. |
-| **SOS** | `POST /trips/{tripId}/sos` | Emergency alert during active trip. Immediate action, no confirmation dialog. |
-| **Trip Share** | `POST /trips/{tripId}/share-links` | Generate shareable tracking link. Copy to clipboard or share via native share sheet. |
-| **Driver Dashboard** | `GET /drivers/me/dashboard` | Earnings summary, availability toggle, pending offers. |
-| **Driver Offers** | `GET /drivers/assignments/offers`, `POST .../accept`, `POST .../decline` | List offers with accept/decline. Idempotency-Key on actions. |
-| **Driver Trip Flow** | `POST /drivers/trips/{tripId}/arrived`, `POST .../complete`, `POST .../location-pings` | Sequential trip lifecycle. Location pings sent every 5-10 seconds during active trip. |
-| **Driver Earnings** | `GET /drivers/earnings/summary`, `GET /drivers/earnings/ledger` | Period-filtered summary + transaction list. |
-| **Driver Documents** | `GET /drivers/documents`, `POST /drivers/documents` | List uploaded docs, add new with type/media/expiry. |
-| **Driver Availability** | `PATCH /drivers/me/availability` | Toggle online/offline with reason code for going offline. |
-| **App Bootstrap** | `GET /config/bootstrap` | Fetch on app launch. Returns service types, cities, feature flags, minimum app version. Cache locally. |
+Replace raw text entry with a modern scheduler:
 
-### 4.2 State Management Strategy
+- bottom sheet date/time picker
+- Now/Later segmented control
+- wheel-style time selection where feasible
+- quick chips:
+  - Now
+  - In 30 min
+  - In 1 hour
+  - Later
+- calendar strip for date
+- time wheel/dial for time
+- clear display of local timezone
 
-**Keep Redux Toolkit** for global state (session, user profile, active booking/trip). It's already well-structured and the team is familiar with it.
+## 8.2 Validation Rules
 
-**Add React Query (TanStack Query)** for server state management. This is the single highest-impact improvement for data flow:
+- pickup time cannot be in the past
+- service lead time must meet serviceability rules
+- if requested time is too soon, show nearest available time
+- quote must refresh if date/time changes
 
-```
-npm install @tanstack/react-query
-```
+## 8.3 UI States
 
-React Query handles caching, background refetching, stale data management, loading/error states, retry logic, and optimistic updates. This eliminates the need for manual `useState` + `useEffect` + try/catch patterns in every screen.
-
-**Recommended data ownership:**
-
-| Layer | Owns | Examples |
-|-------|------|---------|
-| Redux | Client state | Auth tokens, active role, UI preferences, booking form draft |
-| React Query | Server state | Bookings list, trip details, driver profile, earnings data |
-| Local state | Ephemeral UI state | Form inputs, bottom sheet open/closed, animation progress |
-
-### 4.3 Loading, Error, and Empty States
-
-Every API-connected screen must implement all three states:
-
-**Loading States:**
-- Use `ScreenSkeleton` components that mirror the actual screen layout (not a centered spinner).
-- Skeleton shapes should match the content they're replacing: rectangle for text, circle for avatar, rounded rect for card.
-- Animate with shimmer effect (already implemented in `Skeleton.tsx` using LinearGradient).
-- For inline loading (e.g., "Accept Offer" button), use a spinner inside the button and disable interactions.
-
-**Error States:**
-- Use `ErrorState` component with illustration, error message, and "Retry" button.
-- Distinguish between network errors ("No internet connection") and server errors ("Something went wrong").
-- For form submission errors, show inline error messages on specific fields, not just a top-level alert.
-- Network errors should offer a retry action. Auth errors (401) should redirect to login.
-
-**Empty States:**
-- Use `EmptyState` component with contextual illustration, message, and optional CTA.
-- Examples: "No bookings yet — Book your first ride" with a "Book Now" button; "No offers right now — New jobs will appear here when available."
-- Never show a blank screen or an empty scrollable area.
+| State | UI |
+|---|---|
+| No schedule selected | default `Now` |
+| Later selected | date/time sheet opens |
+| Invalid time | inline warning and disabled confirm |
+| Peak time | visible traffic risk hint |
 
 ---
 
-## 5. Responsiveness and Mobile-First Strategy
+## 9. Ride Booking Flow
 
-### 5.1 Breakpoints
+## 9.1 Primary Flow
 
+```mermaid
+flowchart TD
+    A["Post-login Home"] --> B["Map and Booking Sheet"]
+    B --> C["Select Pickup"]
+    C --> D["Select Drop"]
+    D --> E["Choose One-Way or Round-Trip"]
+    E --> F["Choose Now or Schedule"]
+    F --> G["Get Fare"]
+    G --> H["Quote Review"]
+    H --> I["Booking Review"]
+    I --> J["Booking Created"]
+    J --> K["Assignment Status"]
+    K --> L["Driver Assigned"]
+    L --> M["Trip Start"]
+    M --> N["Active Trip"]
+    N --> O["Payment"]
+    O --> P["Rating"]
 ```
-compact:    0 - 389px     (small phones: iPhone SE, older Androids)
-standard:   390 - 430px   (standard phones: iPhone 14/15/16, Pixel)
-large:      431 - 640px   (large phones: iPhone Pro Max, Galaxy Ultra)
-tablet:     641 - 1024px  (tablets: iPad Mini, iPad, Android tablets)
-desktop:    1025+         (web view if applicable)
-```
 
-### 5.2 Layout Behavior by Breakpoint
+## 9.2 One-Way Flow
 
-**Compact (0-389px):**
-- Single column layout
-- Reduce horizontal padding to 16px
-- Stack BottomActionBar buttons vertically
-- Use smaller font sizes for hero text (28px instead of 32px)
-- Hide non-essential UI elements (trust signal strip)
+Required inputs:
 
-**Standard (390-430px):**
-- Default design target. All components optimized for this range
-- 20px horizontal padding
-- Full component display
+- pickup
+- drop
+- schedule
+- rounded distance
+- predicted drive minutes
+- driver pickup estimate when available
+- car details
 
-**Large (431-640px):**
-- Same as standard but with slightly more breathing room
-- Cards can show slightly more content (full addresses instead of truncated)
+Quote must show:
 
-**Tablet (641-1024px):**
-- Two-column layouts where applicable (booking list: list left, detail right)
-- Max content width of 680px
-- Larger map views
-- Side-by-side service cards (2 per row instead of stacked)
+- base fare
+- distance fee
+- traffic-time buffer
+- driver pickup access
+- one-way relocation
+- optional safety fee
+- tax
+- savings summary
 
-**Desktop (1025px+):**
-- Max content width of 920px, centered
-- Three-column grids for service selection
-- Persistent sidebar navigation (replacing bottom tabs)
+## 9.3 Round-Trip Flow
 
-### 5.3 Touch-Friendly UX Improvements
+Required inputs:
 
-- All tappable targets minimum 44x44px (currently some are smaller)
-- Increase bottom tab touch targets to include 8px padding around icons
-- Add press feedback (opacity change + subtle scale transform) on all interactive elements
-- Implement swipe-to-go-back on iOS with native feel
-- Add long-press on booking cards for quick actions (copy booking ID, share, cancel)
-- Spacing between adjacent tappable elements minimum 8px to prevent mis-taps
+- pickup
+- destination/turnaround point
+- return expectation
+- schedule
+- expected total duration
+- rounded total distance
+- planned waiting time if known
+- car details
+
+Quote must show:
+
+- round-trip bundle
+- included distance/time
+- extra distance/time if applicable
+- one pickup access fee
+- bundle savings explanation
+- tax
+
+## 9.4 Backward Compatibility and Service Scope
+
+Keep existing navigation routes during migration:
+
+- `CustomerHome`
+- `CustomerServiceSetup`
+- `CustomerQuote`
+- `CustomerBookingReview`
+- `CustomerBookingStatus`
+- `CustomerAssignedDriver`
+- `CustomerStartTrip`
+- `CustomerActiveTrip`
+- `CustomerPayment`
+- `CustomerRatingIssue`
+
+New map-first home can initially navigate to existing quote/review screens until those screens are redesigned.
+
+Customer-facing service choices are locked to:
+
+- `ONE_WAY_DROP`
+- `ROUND_TRIP`
+
+Airport, hourly/local, and late-night labels must not be shown in the customer booking UI. If legacy backend records contain those service types, the UI may still display them in booking history using a compatibility label, but new customer booking should not create them.
+
+## 9.5 Compact Screen Rules
+
+Home, Help, and Profile must be one-screen-first on common mobile devices:
+
+- Home must not depend on long vertical scrolling. The map takes the top portion and the compact `Book Driver` sheet takes the bottom portion.
+- Booking entry must expose only two choices: `One-way trip` and `Round trip`.
+- Help must show category, short issue text, and submit state in one compact screen.
+- Profile must be editable in-place with name, email, city, mobile display, save, and logout.
+- Header copy must stay short: one title line where possible and one compact subtitle only when useful.
+- Long education copy belongs in docs, onboarding, or support articles, not the main customer screens.
+- Use smaller type, tighter card padding, and only essential helper text.
+- Every secondary screen must have an Uber-like back action near the top.
+
+Service type mapping must stay centralized:
+
+| UI Type | Backend Type |
+|---|---|
+| `ONE_WAY_DROP` | `SCHEDULED_ONE_WAY` |
+| `ROUND_TRIP` | `SCHEDULED_ROUND_TRIP` |
 
 ---
 
-## 6. UX Enhancements
+## 10. Gap Analysis
 
-### 6.1 Micro-interactions
+## 10.1 Current vs Target UI
 
-**Button Press Feedback:**
-The current button press effect (`scale: 0.985, opacity: 0.92`) is too subtle to feel responsive. Implement a spring-based press animation:
-```
-Pressed:  scale(0.96), opacity(0.85) with spring timing (damping: 15, stiffness: 150)
-Released: scale(1.0), opacity(1.0) with spring timing (damping: 20, stiffness: 200)
-```
+| Feature | Current | Gap | Target |
+|---|---|---|---|
+| Default screen | Dashboard/cards | No map-first booking | Interactive map with booking bottom sheet |
+| Current location | Permission info only | No real GPS flow | `expo-location` permission and current location pin |
+| Map interaction | Placeholder | No drag/zoom/select | Native map with markers and route preview |
+| Location search | Manual text fields | No autosuggest/recent/saved | Google Maps-like bottom sheet search |
+| Booking mode | Multiple service cards | Too many choices for MVP | Only `One-way trip` and `Round trip` |
+| Date/time | Text input | Error-prone and non-premium | Bottom sheet wheel/dial-style picker |
+| Quote | Functional screen | Not bottom-sheet or map-aware | Premium fare review with assumptions |
+| Theme | Blue/neutral tokens | Not aligned with new brand ask | Light-green Rydvrse system |
+| Text density | Long explanatory copy | Feels heavy and scroll-prone | Short labels, short helper text, one-screen defaults |
+| Help/Profile | Long header copy and scroll tendency | Not compact | One-screen forms with concise actions |
+| Components | Many good pieces | Some overlap and legacy naming | Consolidated primitives and patterns |
+| API data | Service modules exist | Hardcoded demo coords in quote flow | Real selected locations and route metrics |
+| Responsiveness | Basic flex | Not designed by breakpoint | Explicit phone/tablet/desktop layouts |
+| Accessibility | Partial | Needs systematic checklist | Roles, labels, hints, state, contrast |
+| Performance | Fine for mock app | Map may become heavy | Lazy map, memoized suggestions, virtual lists |
 
-**Toggle Switch (Driver Availability):**
-When the driver toggles availability, animate the switch with a color transition (gray → green for available, green → gray for unavailable) and trigger a light haptic pulse. If going offline requires a reason, slide in a bottom sheet after the toggle animation completes.
+## 10.2 Current vs Target Architecture
 
-**Pull-to-Refresh:**
-Use a custom refresh indicator that shows the Rydvrse brand mark (or a stylized car icon) instead of the default system spinner. The icon rotates while loading.
-
-**Booking Confirmation:**
-After successful booking creation, show a 1.5-second success animation: a checkmark that draws itself (Lottie or SVG animation), the fare amount scales up from 0, and the booking ID fades in. This creates a moment of delight at a high-emotional-value point.
-
-**Tab Bar Active State:**
-When switching tabs, the active icon should have a brief scale-up animation (1.0 → 1.15 → 1.0) with a subtle background dot or pill that fades in behind it.
-
-### 6.2 Screen Transitions
-
-**Stack Navigation:**
-Use `cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS` for standard push/pop transitions. This is more natural than the default fade.
-
-**Modal Presentations:**
-Bottom sheets slide up from the bottom with a spring animation. Full-screen modals (trip tracking, payment) use a vertical slide-up with backdrop dimming.
-
-**Booking Flow Transitions:**
-Within the booking flow (service selection → quote → review → confirm), use a shared element transition on the fare amount card. The fare "travels" from one screen to the next, creating visual continuity.
-
-**Tab Switching:**
-Cross-fade between tabs with a 200ms duration instead of the default instant swap. This prevents the jarring "flash" of content replacement.
-
-### 6.3 Skeleton Loaders
-
-Create purpose-built skeleton screens for each major screen type:
-
-**Home Screen Skeleton:**
-- Rectangle for header area (full width, 120px)
-- 2x small squares for service cards
-- 3x card-shaped rectangles for booking list
-- All with shimmer animation
-
-**Booking Detail Skeleton:**
-- Map placeholder (full width, 200px)
-- Timeline skeleton (3 dots with connecting lines)
-- Card rectangles for fare breakdown and driver info
-
-**Earnings Skeleton:**
-- Large number placeholder (centered)
-- Period selector placeholder
-- 5x list item rectangles for transaction history
-
-### 6.4 Toast Notifications
-
-Add a non-blocking toast system for background events:
-- Booking assigned: "Your driver is on the way!" (success tone)
-- Driver arrived: "Your driver has arrived" (info tone)
-- Payment received: "Payment of ₹1,250 confirmed" (success tone)
-- Quote expiring: "Your quote expires in 2 minutes" (warning tone)
-
-Toasts should appear at the top of the screen, below the status bar, auto-dismiss after 4 seconds, and be swipeable to dismiss.
+| Area | Current | Target |
+|---|---|---|
+| Customer screens | One large file | Feature folders and extracted screens |
+| Booking form | Redux draft fields | Redux draft plus typed `UiLocation` objects |
+| Server state | Manual API calls | Keep current service modules; optionally add query hooks later |
+| Map | Placeholder card | Map module with provider fallback |
+| Bottom sheets | Library installed but not core pattern | Bottom sheet becomes core booking/search/scheduler UI |
+| Theme | Existing token file | Rebrand tokens to green with compatibility aliases |
 
 ---
 
-## 7. Production-Level Improvements
+## 11. Suggested Component Architecture
 
-### 7.1 Accessibility
+## 11.1 Keep and Improve
 
-**Current State:** Good foundation with `accessibilityRole` and `accessibilityLabel` on buttons. Needs expansion.
+Keep these components, but restyle to the new green identity:
 
-**Required Improvements:**
+- `Screen`
+- `BottomActionBar`
+- `SectionCard`
+- `StatusBanner`
+- `StatusChip`
+- `FareBreakdown`
+- `Skeleton`
+- `AppIcon`
+- `ServiceIcon`
+- `BrandMark`
+- `BrandLockup`
 
-Contrast Ratios: The current `#898989` secondary text on `#FFFFFF` background fails WCAG AA (contrast ratio 3.5:1, minimum is 4.5:1). The proposed `#6B7280` (gray500) achieves 5.0:1. All text colors in the new palette should be verified against WCAG AA standards.
+## 11.2 Add New Components
 
-Screen Reader: Add `accessibilityHint` to buttons that have non-obvious outcomes. For example, "Accept Offer" should have hint "Double tap to accept this job and notify the customer." Add `accessibilityLiveRegion="polite"` to status banners and trip status updates so screen readers announce changes.
+Recommended additions:
 
-Keyboard Navigation: Ensure all interactive elements are reachable via Tab key (relevant for web builds and external keyboards on tablets). Add visible focus indicators (2px brand blue outline) on focused elements.
+```text
+src/components/maps/
+  RydvrseMap.tsx
+  MapPin.tsx
+  RoutePolyline.tsx
+  LocateMeButton.tsx
+  MapFallback.tsx
 
-Reduced Motion: Check `AccessibilityInfo.isReduceMotionEnabled()` and disable spring animations, replacing them with simple opacity fades. This respects users who experience motion sickness.
+src/components/booking/
+  BookingHomeSheet.tsx
+  LocationSearchSheet.tsx
+  TripTypeSegment.tsx
+  ScheduleSelector.tsx
+  QuotePreviewCard.tsx
+  VehicleDetailsSheet.tsx
 
-Dynamic Type: Support iOS Dynamic Type and Android font scaling. Set `allowFontScaling={true}` on all text components. Test all screens at 200% font scale to ensure nothing breaks.
+src/components/sheets/
+  AppBottomSheet.tsx
+  SheetHandle.tsx
+  SheetHeader.tsx
 
-Touch Targets: Audit all tappable elements for 44x44px minimum. The current `StatusChip` and `KeyValueRow` components may fall below this threshold.
+src/components/location/
+  LocationSearchField.tsx
+  LocationSuggestionRow.tsx
+  SavedLocationRow.tsx
+  RecentLocationRow.tsx
+  PermissionPromptCard.tsx
 
-### 7.2 Performance Optimization
+src/components/time/
+  DateStrip.tsx
+  TimeWheelPicker.tsx
+  QuickTimeChips.tsx
 
-**List Virtualization:** Replace `ScrollView` with `FlatList` for all list screens (bookings, earnings ledger, support tickets, driver offers). `FlatList` only renders visible items, which is critical for lists that can grow to hundreds of items.
-
-**Image Optimization:** When car images, driver avatars, or map tiles are added, use `expo-image` (which supports caching, progressive loading, and blur-up placeholders) instead of React Native's `Image` component.
-
-**Code Splitting:** Split customer and driver navigators into separate bundles. Since users are either customers or drivers (not both simultaneously), the inactive role's code never needs to load.
-
-**Memoization:** Wrap expensive components (map views, fare breakdowns, long lists) in `React.memo()`. Use `useMemo` for computed values (formatted currencies, filtered lists) and `useCallback` for event handlers passed as props.
-
-**Bundle Size:** The current app ships with mock data (`src/samples/mockData.ts`) in production. Gate this behind `__DEV__` or the `EXPO_PUBLIC_USE_MOCKS` flag to tree-shake it from production builds.
-
-**Startup Time:** Load the bootstrap config (`GET /config/bootstrap`) during the splash screen phase. Cache it in AsyncStorage so returning users see content immediately while the app refreshes in the background.
-
-### 7.3 Design Consistency Enforcement
-
-**Lint Rules:** Add ESLint rules that forbid inline colors (`color: "#FF0000"`) and inline font sizes. All visual values must come from the theme tokens.
-
-**Component Library Documentation:** Create a Storybook-style component catalog (using `@storybook/react-native` or a simple in-app debug screen) that shows every component in every state. This serves as a living design spec.
-
-**Design Review Checklist:** Before merging any PR that touches UI, verify against this checklist:
-1. Uses theme tokens (no hardcoded colors, spacing, or font sizes)
-2. Implements loading, error, and empty states
-3. Passes WCAG AA contrast check
-4. Minimum 44x44px touch targets
-5. Looks correct at compact (375px) and tablet (768px) widths
-6. Has `accessibilityRole` and `accessibilityLabel` on interactive elements
-7. Animations respect reduced motion preferences
-
----
-
-## 8. Tech Stack Recommendations
-
-### 8.1 UI Libraries to Add
-
-| Library | Purpose | Why |
-|---------|---------|-----|
-| `@gorhom/bottom-sheet` | Bottom sheet modals | Best-in-class bottom sheet for React Native. Handles gestures, snap points, keyboard avoidance, and backdrop. |
-| `react-native-reanimated` | Animations | 60fps animations on the UI thread. Required by bottom-sheet and enables spring physics, shared element transitions. |
-| `@tanstack/react-query` | Server state | Caching, background refetching, retry logic, optimistic updates. Eliminates manual loading/error state management. |
-| `react-native-maps` | Map views | Google Maps / Apple Maps integration. Required for trip tracking, pickup/drop selection. |
-| `expo-haptics` | Haptic feedback | Light/medium/heavy haptic pulses for confirmations, errors, toggles. |
-| `expo-image` | Image optimization | Caching, progressive loading, blur-up placeholders, WebP support. |
-| `react-native-toast-message` | Toast notifications | Non-blocking notifications for background events. |
-| `lottie-react-native` | Complex animations | Booking confirmation, onboarding walkthrough, empty state illustrations. |
-| `@react-native-async-storage/async-storage` | Persistent storage | Cache bootstrap config, auth tokens, user preferences locally. |
-| `react-native-mmkv` | Fast key-value storage | Alternative to AsyncStorage for performance-critical reads (auth tokens, feature flags). Synchronous API. |
-| `expo-secure-store` | Secure credential storage | Store auth tokens securely in the device keychain/keystore. |
-
-### 8.2 Libraries NOT Recommended
-
-| Library | Why Not |
-|---------|---------|
-| NativeWind / Tailwind | The app already has a well-structured StyleSheet system. Switching to Tailwind would require rewriting all styles and add a build step. |
-| Styled Components | Adds runtime overhead on React Native. StyleSheet is more performant. |
-| UI Kits (NativeBase, React Native Paper) | These impose their own design system. Rydvrse already has a custom design language; using a kit would create visual conflicts. |
-| MobX / Zustand | Redux Toolkit is already in place and working well. Switching state management has no clear benefit. |
-
-### 8.3 Styling Approach
-
-**Keep React Native StyleSheet** as the primary styling method. It's performant (styles are sent to native once) and the team is already using it well.
-
-**Enhance the theme system** with the new token structure. Create a `useTheme()` hook that returns the active theme (light or dark), enabling dark mode support without refactoring components:
-
-```typescript
-// Usage in components
-const { colors, spacing } = useTheme();
+src/hooks/
+  useCurrentLocation.ts
+  useLocationSearch.ts
+  useRecentLocations.ts
+  useRouteEstimate.ts
+  useQuoteDraft.ts
 ```
 
-**Add a `styled()` utility** for common patterns:
+## 11.3 Target Screen Split
 
-```typescript
-// Lightweight style composition helper
-const Card = styled(View, (theme) => ({
-  backgroundColor: theme.colors.white,
-  borderRadius: theme.radius.lg,
-  padding: theme.space[5],
-  ...theme.shadow.md,
-}));
+Do not split everything at once. First extraction target:
+
+```text
+src/screens/customer/home/
+  CustomerHomeScreen.tsx
+  useCustomerHomeController.ts
+
+src/screens/customer/booking/
+  CustomerQuoteScreen.tsx
+  CustomerBookingReviewScreen.tsx
+
+src/screens/customer/components/
+  BookingCard.tsx
+  QuoteSummaryStrip.tsx
+  DriverTrustStrip.tsx
 ```
 
-This is not styled-components — it's a thin wrapper that generates StyleSheets at build time.
+After that:
+
+- split auth screens
+- split trip screens
+- split payment/rating/support
+- repeat same strategy for driver screens
+
+## 11.4 Component Responsibility Rules
+
+- Screen components own navigation and high-level orchestration.
+- Controller hooks own API calls and state transitions.
+- UI components render visual state only.
+- API service modules remain the only place that knows endpoint paths.
+- Components must not hardcode backend service type names directly; use mapping utilities.
 
 ---
 
-## 9. Step-by-Step Execution Plan
+## 12. API Integration Mapping
 
-### Phase 1: Foundation (Week 1-2)
+## 12.1 Swagger/API to UI Mapping
 
-**Goal:** Establish the design system and component architecture without breaking existing functionality.
+| UI Area | Endpoint | Usage |
+|---|---|---|
+| OTP request | `POST /api/v1/auth/otp/request` | Existing login |
+| OTP verify | `POST /api/v1/auth/otp/verify` | Existing session hydration |
+| Customer home | `GET /api/v1/customers/me/home` | Upcoming booking, active trip |
+| Customer profile | `GET /api/v1/customers/me`, `PATCH /api/v1/customers/me` | Profile setup/edit |
+| Saved locations | `/api/v1/customers/me/saved-locations` | Saved pickup/drop suggestions |
+| Serviceability | `POST /api/v1/serviceability/check` | Validate city/zone/time before quote |
+| Quote create | `POST /api/v1/quotes` | Fare generation from selected map/search data |
+| Quote get | `GET /api/v1/quotes/{quote_id}` | Refresh active quote |
+| Booking create | `POST /api/v1/bookings` | Confirm booking from quote |
+| Booking list | `GET /api/v1/bookings` | Bookings tab |
+| Booking detail | `GET /api/v1/bookings/{booking_id}` | Detail/timeline |
+| Cancellation preview | `GET /api/v1/bookings/{booking_id}/cancellation-preview` | Cancellation sheet |
+| Cancel booking | `POST /api/v1/bookings/{booking_id}/cancel` | Confirm cancellation |
+| Modification preview | `POST /api/v1/bookings/{booking_id}/modification-preview` | Date/location edit preview |
+| Start confirmation | `POST /api/v1/bookings/{booking_id}/start-confirmation` | Customer trip start |
+| Tracking stream | `GET /api/v1/trips/{trip_id}/tracking/stream` | Active trip map updates |
+| Payment order | `POST /api/v1/bookings/{booking_id}/payment-orders` | Payment flow |
+| Invoice | `GET /api/v1/bookings/{booking_id}/invoice` | Final receipt |
+| Rating | `POST /api/v1/bookings/{booking_id}/ratings` | Rating flow |
+| Support tickets | `/api/v1/support/tickets` | Support tab and incident flows |
 
-| Day | Task | Impact | Effort |
-|-----|------|--------|--------|
-| 1-2 | **Upgrade theme tokens.** Replace `src/theme/index.ts` with the new color palette, spacing scale, radius, shadow, and typography tokens. Update `colors`, `spacing`, `radius`, `shadows`, and `typography` exports to use the new values. Run the app — everything will look different but functionally work. | High | Low |
-| 3 | **Add React Query.** Install `@tanstack/react-query`, create a `QueryClientProvider` in `App.tsx`. Don't migrate any API calls yet — just establish the infrastructure. | Medium | Low |
-| 4 | **Add `@gorhom/bottom-sheet` and `react-native-reanimated`.** Install, configure the Reanimated Babel plugin, add `BottomSheet` component wrapper. Test with a simple bottom sheet on one screen. | Medium | Low |
-| 5-6 | **Refactor primitives.** Create new `Button` (with variants), `Text`, `IconButton`, `Chip`, `Avatar`, `Divider`, `Spacer` components using new tokens. Keep old components temporarily — new ones coexist. | High | Medium |
-| 7-8 | **Refactor layout components.** Upgrade `Screen`, `Header`, `BottomBar`. Add `Section`, `Row`, `KeyboardAvoid` components. | High | Medium |
-| 9-10 | **Split CustomerScreens.tsx.** Extract each screen into its own file under `src/screens/customer/`. This is pure file reorganization with import path updates. Run all existing tests to verify. | Critical | Medium |
+## 12.2 Quote Payload From New UI
 
-### Phase 2: Customer App Visual Overhaul (Week 3-4)
+The redesigned booking UI must send real map/search-derived values:
 
-**Goal:** Transform the customer experience with the new design language.
-
-| Day | Task | Impact | Effort |
-|-----|------|--------|--------|
-| 11-12 | **Redesign Home Screen.** Full-bleed brand header with greeting and location. Service type cards in a 2x2 grid with icons and labels. Active booking banner (if exists). Upcoming bookings list. Trust signal strip. Pull-to-refresh. Migrate from direct API calls to React Query `useQuery`. | Very High | High |
-| 13-14 | **Redesign Login and OTP Flow.** Full-screen brand illustration at top. Phone input with country code. OTP input with individual digit boxes and auto-advance. Animated success state. | High | Medium |
-| 15-16 | **Redesign Booking Flow.** Service setup → Quote → Review → Confirm as a multi-step flow with progress indicator. Bottom sheet for service type selection. Animated fare card. Map preview for pickup/drop locations. | Very High | High |
-| 17-18 | **Redesign Booking Status and Active Trip.** Real-time map with driver location (SSE integration). Bottom sheet with trip details, driver info, and contact actions. Progress timeline (Booked → Assigned → En route → Arrived → Trip started → Completed). | Very High | High |
-| 19-20 | **Redesign Booking List and Detail.** FlatList with pull-to-refresh. Filter chips (All, Upcoming, Completed, Cancelled). BookingCard with service icon, status chip, fare, and date. Detail screen with full timeline, fare breakdown, driver card, and action buttons. | High | Medium |
-
-### Phase 3: Driver App and Feedback Systems (Week 5-6)
-
-**Goal:** Transform the driver experience and implement all feedback patterns.
-
-| Day | Task | Impact | Effort |
-|-----|------|--------|--------|
-| 21-22 | **Redesign Driver Dashboard.** Earnings summary card (today's earnings, total rides). Availability toggle with animated state change. Pending offers section with offer cards. Quick stats strip. | High | Medium |
-| 23-24 | **Redesign Driver Trip Flow.** Map-centric screens for pickup, active trip, and completion. Location pings integration. Arrival notification. Trip completion with earnings summary. | High | High |
-| 25-26 | **Implement Skeleton Loaders.** Create skeleton variants for Home, Booking List, Booking Detail, Driver Dashboard, Earnings. Replace all loading spinners with content-shaped skeletons. | High | Medium |
-| 27-28 | **Implement Error and Empty States.** Create `ErrorState` and enhance `EmptyState` for every list/detail screen. Add retry logic. Add network status detection. | High | Medium |
-| 29-30 | **Implement Toast System.** Add `react-native-toast-message` with custom styled toasts. Wire up toasts for booking confirmations, driver assignments, payment confirmations, and errors. | Medium | Low |
-
-### Phase 4: Polish and Production Readiness (Week 7-8)
-
-**Goal:** Animations, accessibility, performance, and dark mode.
-
-| Day | Task | Impact | Effort |
-|-----|------|--------|--------|
-| 31-32 | **Add Animations.** Booking confirmation animation (Lottie). Button spring press. Tab switch cross-fade. Bottom sheet gestures. Status change transitions. | High | Medium |
-| 33-34 | **Accessibility Audit.** Fix contrast ratios. Add `accessibilityHint` to all buttons. Add `accessibilityLiveRegion` to dynamic content. Test with VoiceOver (iOS) and TalkBack (Android). Support reduced motion. | Critical | Medium |
-| 35-36 | **Performance Optimization.** Replace ScrollViews with FlatLists. Add React.memo to expensive components. Implement code splitting between customer/driver. Cache bootstrap config. Remove mock data from production bundle. | High | Medium |
-| 37-38 | **Dark Mode.** Create `darkTheme.ts` with inverted color scheme. Add theme context with system preference detection. Test all screens in dark mode. | Medium | High |
-| 39-40 | **Final QA and Polish.** Cross-device testing (iPhone SE, iPhone 16, Pixel 8, iPad). Fix spacing inconsistencies. Final animation timing tweaks. Performance profiling. | Critical | Medium |
-
-### Priority Summary
-
-If time is limited, this is the priority order for maximum impact:
-
-1. **Theme tokens upgrade** (Day 1-2) — Instantly transforms visual identity
-2. **Split monolith screen files** (Day 9-10) — Unlocks all future work
-3. **Home screen redesign** (Day 11-12) — First impression matters most
-4. **Booking flow redesign** (Day 15-18) — Core user journey
-5. **React Query migration** (Day 3 + ongoing) — Eliminates loading/error bugs
-6. **Skeleton loaders** (Day 25-26) — Perceived performance boost
-7. **Accessibility fixes** (Day 33-34) — Legal compliance + user reach
-
----
-
-## 10. Bonus: Unique UI Ideas
-
-### 10.1 "Ride Confidence Score"
-
-Instead of just showing a driver's star rating (which every ride-hailing app does), show a "Confidence Score" that combines multiple signals into a single visual:
-
-The score is a circular gauge (0-100) that fills with brand blue, showing: driver rating weight (40%), on-time percentage (30%), and number of completed trips (30%). Below the gauge, show the three contributing factors as small bar charts. This gives customers a richer, more trustworthy signal than a simple "4.8 stars" and differentiates Rydvrse from competitors.
-
-### 10.2 "Trip Diary" with Auto-Generated Summaries
-
-After each trip, automatically generate a summary card that includes a map snapshot of the route, the fare breakdown, trip duration, and a one-line AI-generated description ("25-minute ride from Indiranagar to HSR Layout via Silk Board"). These cards accumulate in a "Trip Diary" section that users can scroll through like a travel journal. This turns transactional booking history into an engaging, nostalgic experience. Users can share individual trip diary cards on social media with branded templates.
-
-### 10.3 "Smart Schedule" with Context-Aware Booking
-
-Instead of the standard "Schedule a Ride" flow, offer a "Smart Schedule" feature that integrates with the user's calendar (optional, with explicit permission). The home screen shows a contextual prompt: "You have a meeting at JP Nagar at 3:00 PM — book a ride for 2:15 PM?" When the user taps, the booking form is pre-filled with pickup (saved home location), drop (meeting location), and time (calculated for arrival with buffer). This makes Rydvrse feel proactive rather than reactive, and creates a genuine utility moat that competitors would need deep platform integration to replicate.
-
----
-
-## Appendix A: New Theme Implementation
-
-Below is the production-ready replacement for `src/theme/index.ts`:
-
-```typescript
-import { Platform, TextStyle, ViewStyle } from "react-native";
-
-// ─── Color Tokens ────────────────────────────────────────────────────
-export const colors = {
-  brand: {
-    primary:    "#1B6EF3",
-    strong:     "#1558C9",
-    soft:       "#EBF2FE",
-    subtle:     "#F5F8FF",
+```json
+{
+  "service_type": "SCHEDULED_ONE_WAY",
+  "pickup": {
+    "label": "Current location",
+    "address_line_1": "Koramangala 4th Block",
+    "city_id": "20000000-0000-0000-0000-000000000001",
+    "latitude": 12.9352,
+    "longitude": 77.6245
   },
-  neutral: {
-    900: "#1A1D21",
-    700: "#3D4350",
-    500: "#6B7280",
-    400: "#9CA3AF",
-    300: "#D1D5DB",
-    200: "#E5E7EB",
-    100: "#F3F4F6",
-    50:  "#F9FAFB",
-    0:   "#FFFFFF",
+  "drop": {
+    "label": "Whitefield Main Road",
+    "address_line_1": "Whitefield Main Road",
+    "city_id": "20000000-0000-0000-0000-000000000001",
+    "latitude": 12.9698,
+    "longitude": 77.75
   },
-  state: {
-    success:     "#059669",
-    successSoft: "#ECFDF5",
-    warning:     "#D97706",
-    warningSoft: "#FFFBEB",
-    danger:      "#DC2626",
-    dangerSoft:  "#FEF2F2",
-    info:        "#2563EB",
-    infoSoft:    "#EFF6FF",
-  },
-  accent: {
-    primary:  "#F59E0B",
-    soft:     "#FEF3C7",
-  },
-};
-
-// ─── Semantic Aliases ────────────────────────────────────────────────
-export const semantic = {
-  text: {
-    primary:   colors.neutral[900],
-    secondary: colors.neutral[700],
-    muted:     colors.neutral[500],
-    inverted:  colors.neutral[0],
-    brand:     colors.brand.primary,
-  },
-  bg: {
-    app:      colors.neutral[0],
-    surface:  colors.neutral[0],
-    muted:    colors.neutral[100],
-    elevated: colors.neutral[50],
-    brand:    colors.brand.primary,
-    brandSoft: colors.brand.soft,
-  },
-  border: {
-    soft:   colors.neutral[200],
-    strong: colors.neutral[300],
-    brand:  colors.brand.primary,
-  },
-};
-
-// ─── Spacing Scale ───────────────────────────────────────────────────
-export const space = {
-  1:  4,
-  2:  8,
-  3:  12,
-  4:  16,
-  5:  20,
-  6:  24,
-  7:  32,
-  8:  40,
-  9:  48,
-  10: 64,
-} as const;
-
-// ─── Border Radius ───────────────────────────────────────────────────
-export const radius = {
-  none: 0,
-  sm:   6,
-  md:   12,
-  lg:   16,
-  xl:   20,
-  full: 9999,
-} as const;
-
-// ─── Shadows ─────────────────────────────────────────────────────────
-export const shadows = {
-  sm: Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: "#000000",
-      shadowOpacity: 0.06,
-      shadowRadius: 3,
-      shadowOffset: { width: 0, height: 1 },
-    },
-    android: { elevation: 1 },
-    default: {},
-  }),
-  md: Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: "#000000",
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-    },
-    android: { elevation: 3 },
-    default: {},
-  }),
-  lg: Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: "#000000",
-      shadowOpacity: 0.10,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 8 },
-    },
-    android: { elevation: 5 },
-    default: {},
-  }),
-  xl: Platform.select<ViewStyle>({
-    ios: {
-      shadowColor: "#000000",
-      shadowOpacity: 0.12,
-      shadowRadius: 40,
-      shadowOffset: { width: 0, height: 16 },
-    },
-    android: { elevation: 8 },
-    default: {},
-  }),
-};
-
-// ─── Typography ──────────────────────────────────────────────────────
-export const fontFamily = {
-  medium:    "Manrope_500Medium",
-  semiBold:  "Manrope_600SemiBold",
-  bold:      "Manrope_700Bold",
-  extraBold: "Manrope_800ExtraBold",
-} as const;
-
-export const textStyle = {
-  displayLg: {
-    fontFamily: fontFamily.extraBold,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: -0.8,
-    color: semantic.text.primary,
-  } satisfies TextStyle,
-  displaySm: {
-    fontFamily: fontFamily.extraBold,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.5,
-    color: semantic.text.primary,
-  } satisfies TextStyle,
-  headingLg: {
-    fontFamily: fontFamily.bold,
-    fontSize: 22,
-    lineHeight: 28,
-    letterSpacing: -0.3,
-    color: semantic.text.primary,
-  } satisfies TextStyle,
-  headingSm: {
-    fontFamily: fontFamily.bold,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.15,
-    color: semantic.text.primary,
-  } satisfies TextStyle,
-  bodyLg: {
-    fontFamily: fontFamily.medium,
-    fontSize: 16,
-    lineHeight: 24,
-    color: semantic.text.secondary,
-  } satisfies TextStyle,
-  bodyMd: {
-    fontFamily: fontFamily.medium,
-    fontSize: 15,
-    lineHeight: 22,
-    color: semantic.text.secondary,
-  } satisfies TextStyle,
-  bodySm: {
-    fontFamily: fontFamily.medium,
-    fontSize: 14,
-    lineHeight: 20,
-    color: semantic.text.secondary,
-  } satisfies TextStyle,
-  bodyStrong: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 15,
-    lineHeight: 22,
-    letterSpacing: -0.05,
-    color: semantic.text.primary,
-  } satisfies TextStyle,
-  caption: {
-    fontFamily: fontFamily.medium,
-    fontSize: 12,
-    lineHeight: 16,
-    color: semantic.text.muted,
-  } satisfies TextStyle,
-  overline: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: semantic.text.muted,
-  } satisfies TextStyle,
-  label: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: semantic.text.primary,
-  } satisfies TextStyle,
-  tabLabel: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 11,
-    lineHeight: 14,
-  } satisfies TextStyle,
-};
-
-// ─── Animation Tokens ────────────────────────────────────────────────
-export const animation = {
-  fast:   150,
-  normal: 250,
-  slow:   400,
-  spring: { damping: 20, stiffness: 180 },
-};
-
-// ─── Aggregated Theme ────────────────────────────────────────────────
-export const theme = {
-  colors,
-  semantic,
-  space,
-  radius,
-  shadows,
-  fontFamily,
-  textStyle,
-  animation,
-};
-
-// Backward-compatible aliases (remove after migration)
-export const spacing = {
-  xxs: space[1],
-  xs:  space[2],
-  sm:  space[3],
-  md:  space[4],
-  lg:  space[5],
-  xl:  space[6],
-  xxl: space[7],
-  xxxl: space[8],
-};
-
-export const typography = {
-  family: fontFamily,
-  text: {
-    hero:       textStyle.displayLg,
-    title:      textStyle.displaySm,
-    section:    textStyle.headingSm,
-    overline:   textStyle.overline,
-    body:       textStyle.bodyMd,
-    bodyStrong: textStyle.bodyStrong,
-    caption:    textStyle.caption,
-  },
-};
+  "scheduled_pickup_at": "2026-04-17T16:30:00+05:30",
+  "expected_duration_minutes": 105,
+  "rounded_distance_km": 31,
+  "predicted_drive_minutes": 105,
+  "driver_pickup_distance_km": 8,
+  "driver_pickup_eta_minutes": 24,
+  "transmission_type": "AUTOMATIC",
+  "car_type": "SEDAN",
+  "car_brand_model": "Hyundai Verna",
+  "car_number": "KA03AB1234",
+  "safety_addon_opted": true,
+  "customer_notes": "Pickup from Gate 2"
+}
 ```
+
+## 12.3 Backend Compatibility Requirements
+
+The frontend must continue supporting both:
+
+- current normalized mock quote shape
+- real backend quote shape from `/quotes`
+
+The `customerApi.quote` normalization layer must remain responsible for translating backend fields into UI-friendly `QuotePayload`.
+
+## 12.4 Location Provider Strategy
+
+Location search can be implemented in stages:
+
+1. Mock suggestions from local data.
+2. Device GPS via `expo-location`.
+3. Provider autocomplete/geocode through backend proxy.
+4. Route distance/time estimate through backend proxy.
+5. Saved/recent locations integration.
+
+Do not put provider secrets inside the mobile app.
 
 ---
 
-## Appendix B: Package Installation Commands
+## 13. Responsive Design Strategy
 
-```bash
-# Phase 1 — Foundation
-npm install @gorhom/bottom-sheet react-native-reanimated react-native-gesture-handler
-npm install @tanstack/react-query
-npm install @react-native-async-storage/async-storage
+## 13.1 Breakpoints
 
-# Phase 2 — Maps and Media
-npm install react-native-maps
-npm install expo-image
-npm install expo-haptics
+| Breakpoint | Width | Behavior |
+|---|---:|---|
+| Compact phone | `<390` | Single column, tighter spacing, sheet controls stacked |
+| Standard phone | `390-430` | Primary design target |
+| Large phone | `431-640` | Slightly more sheet height and visible context |
+| Tablet | `641-1024` | Map and booking content can sit side-by-side in landscape |
+| Desktop/web | `1025+` | Centered max-width shell or split map/list view |
 
-# Phase 3 — Polish
-npm install lottie-react-native
-npm install react-native-toast-message
-npm install react-native-mmkv
-npm install expo-secure-store
+## 13.2 Mobile Portrait
 
-# Babel config addition for Reanimated
-# Add 'react-native-reanimated/plugin' to babel.config.js plugins array
-```
+- map on top
+- booking sheet bottom
+- full-width CTA
+- two-option segmented controls
+- tabs visible only outside focused booking/search mode
+
+## 13.3 Tablet
+
+- portrait: same as mobile with larger map
+- landscape: map left, booking panel right
+- booking sheet becomes side panel where useful
+
+## 13.4 Desktop/Web Future
+
+- persistent left navigation
+- map center/right
+- booking panel left or bottom
+- max content width for non-map screens
 
 ---
 
-## Appendix C: Migration Checklist
+## 14. Loading, Empty, Error, and Edge States
 
-Use this checklist when migrating each screen from the old design to the new:
+## 14.1 Home
 
-- [ ] Screen extracted to its own file (not in monolith)
-- [ ] Uses new theme tokens (colors, space, radius, shadows, textStyle)
-- [ ] No inline color/spacing values
-- [ ] Loading state uses ScreenSkeleton
-- [ ] Error state uses ErrorState with retry
-- [ ] Empty state uses EmptyState with CTA
-- [ ] All buttons use new Button component with variant prop
-- [ ] Cards use appropriate card type (SurfaceCard, BookingCard, etc.)
-- [ ] Lists use FlatList (not ScrollView) for dynamic content
-- [ ] Pull-to-refresh implemented on list screens
-- [ ] AccessibilityRole, accessibilityLabel, and accessibilityHint set
-- [ ] Touch targets minimum 44x44px
-- [ ] Tested at 375px and 768px widths
-- [ ] Tested in dark mode
-- [ ] Tested with VoiceOver/TalkBack
-- [ ] Animations respect reduced motion preference
-- [ ] API calls use React Query hooks
-- [ ] Haptic feedback on confirmations and errors
+- loading map
+- loading home data
+- permission waiting
+- permission denied
+- GPS unavailable
+- map provider unavailable
+- offline
+- no service in selected area
+- active booking present
+- upcoming booking present
+
+## 14.2 Search
+
+- empty query with saved/recent locations
+- searching
+- no results
+- provider error
+- selected location outside service area
+- keyboard overlap
+
+## 14.3 Quote
+
+- quote loading
+- quote success
+- quote expired
+- quote unavailable
+- route estimate missing
+- pricing assumptions fallback
+- backend validation error
+- network error
+
+## 14.4 Booking
+
+- booking create loading
+- duplicate tap/idempotency
+- quote expired before confirm
+- booking created
+- assignment pending
+- assignment delayed
+- driver reassigned
+- user cancellation preview
+- payment failed
+- incident flow
+
+---
+
+## 15. Accessibility Requirements
+
+Every redesigned component must follow:
+
+- minimum touch target `44x44`
+- visible focus state where keyboard navigation is possible
+- `accessibilityRole` for buttons, tabs, toggles, search fields
+- `accessibilityLabel` for icon-only controls
+- `accessibilityHint` for destructive or high-stakes actions
+- `accessibilityState` for selected/disabled/loading states
+- live region for assignment/trip status updates
+- contrast check for green surfaces
+- text should support system font scaling where feasible
+
+Examples:
+
+- Locate me button label: "Use current location"
+- Pickup field label: "Pickup location"
+- Drop field label: "Drop location"
+- Book CTA hint: "Creates a fare quote before booking confirmation"
+- Cancel booking hint: "Shows cancellation fee before cancellation is confirmed"
+
+---
+
+## 16. Performance Requirements
+
+Map-first UI introduces performance risks. Mitigation:
+
+- lazy-load map components only on map screens
+- keep map fallback in mock/web/error environments
+- debounce search input `250-350ms`
+- virtualize long suggestion/recent lists
+- avoid re-rendering map on every text input change
+- memoize markers and route overlays
+- keep route calculation outside render path
+- use skeletons instead of blocking spinners
+- avoid loading all screens in tab navigator if not needed
+- keep heavy SVG illustrations off the map-first home
+
+---
+
+## 17. Incremental Refactor Strategy
+
+## 17.1 Migration Rules
+
+- No full rewrite.
+- No breaking route names unless all navigators are updated in the same change.
+- Keep mock mode working.
+- Keep backend API integration working.
+- Keep existing service type mapping.
+- Keep `MapPlaceholderCard` fallback until native maps are stable.
+- Each milestone should be typechecked before moving forward.
+
+## 17.2 Phase 0: Documentation and Design Lock
+
+Deliverables:
+
+- update this plan
+- confirm Rydvrse green theme
+- confirm home screen layout
+- confirm booking flow states
+- confirm API mapping
+
+Status:
+
+- this document is the output of Phase 0
+
+## 17.3 Phase 1: Theme Foundation
+
+Tasks:
+
+- update `src/theme/index.ts` from blue to Rydvrse green palette
+- preserve backward-compatible token aliases
+- update button/status/card components to use green tokens
+- ensure contrast on all buttons and chips
+- typecheck
+
+Acceptance criteria:
+
+- app compiles
+- existing screens remain functional
+- no route/API changes
+- visual identity shifts to green without layout rewrite
+
+## 17.4 Phase 2: Map Foundation
+
+Tasks:
+
+- add `expo-location` and `react-native-maps`
+- create `RydvrseMap`
+- create `MapFallback`
+- create `useCurrentLocation`
+- keep placeholder fallback for errors/mock/web
+- add permission prompt UX
+
+Acceptance criteria:
+
+- home can show map or fallback
+- permission denied path works
+- no booking flow breakage
+
+## 17.5 Phase 3: Map-First Home
+
+Tasks:
+
+- redesign `CustomerHomeScreen` into map plus booking sheet
+- add `BookingHomeSheet`
+- add `TripTypeSegment`
+- add location input rows
+- show active/upcoming booking compact cards
+- keep navigation to existing quote/review screens
+
+Acceptance criteria:
+
+- post-login lands on map-first home
+- one-way and round-trip can be selected
+- existing quote CTA still works
+- tabs remain usable
+
+## 17.6 Phase 4: Location Search
+
+Tasks:
+
+- create `LocationSearchSheet`
+- add suggestion rows
+- add saved/recent local state
+- integrate current location result
+- map selected location into booking draft
+- replace hardcoded quote pickup/drop values
+
+Acceptance criteria:
+
+- pickup/drop are selected from UI location objects
+- quote API receives selected coordinates
+- manual fallback remains available
+
+## 17.7 Phase 5: Date/Time Picker
+
+Tasks:
+
+- create schedule bottom sheet
+- add quick chips
+- add wheel/dial-style picker where feasible
+- add lead-time validation
+- disclose night/peak implications
+
+Acceptance criteria:
+
+- no raw date string editing required for normal users
+- selected time maps to `scheduled_pickup_at`
+- invalid time disables quote CTA
+
+## 17.8 Phase 6: Quote and Review Polish
+
+Tasks:
+
+- redesign quote as premium fare review
+- show Bengaluru assumptions visually
+- show savings summary
+- show driver fairness note
+- show quote expiry timer
+- improve quote expired refresh state
+
+Acceptance criteria:
+
+- quote remains API-driven
+- fare components remain itemized
+- expired quote cannot confirm booking
+
+## 17.9 Phase 7: Trip and Payment Polish
+
+Tasks:
+
+- map-aware assigned driver screen
+- map-aware active trip screen
+- tracking stream UI when available
+- payment failed/retry state
+- rating and incident flows
+
+Acceptance criteria:
+
+- active trip progression still works
+- support remains accessible
+- payment failure is recoverable
+
+## 17.10 Phase 8: Driver App Alignment
+
+Tasks:
+
+- apply green theme
+- improve driver home
+- job offer cards
+- pickup map/fallback
+- earnings clarity
+- support/incident access
+
+Acceptance criteria:
+
+- driver app remains task-first
+- no customer-specific map assumptions leak into driver flows
+
+---
+
+## 18. Implementation Roadmap
+
+## 18.1 Sprint Breakdown
+
+| Sprint | Focus | Output |
+|---|---|---|
+| Sprint 1 | Theme and component baseline | Green design system, buttons/cards/status updated |
+| Sprint 2 | Map foundation | Map/fallback/permission infrastructure |
+| Sprint 3 | Home redesign | Map-first customer home and booking sheet |
+| Sprint 4 | Location search | Search sheet, recent/saved locations, quote payload mapping |
+| Sprint 5 | Date/time and quote polish | Scheduler, premium quote review, expiry/error states |
+| Sprint 6 | Trip/payment polish | Tracking, payment failure, cancellation/reassignment states |
+| Sprint 7 | Driver app alignment | Driver dashboard, offers, earnings, trip states |
+| Sprint 8 | QA and hardening | accessibility, performance, test coverage, bug fixes |
+
+## 18.2 Workstream Owners
+
+| Workstream | Owner Role |
+|---|---|
+| Design system | Mobile frontend |
+| Map/location UX | Mobile frontend plus backend/API support |
+| Quote/booking integration | Mobile frontend plus backend |
+| API contract | Backend |
+| Driver app | Mobile frontend |
+| QA/accessibility | QA plus frontend |
+| Product acceptance | Product/Founder |
+
+## 18.3 Dependencies
+
+- map provider decision
+- location autocomplete/geocode provider
+- route estimate source
+- API key/backend proxy approach
+- backend serviceability/check readiness
+- backend quote route metrics support
+- Expo Go compatibility decision versus development build
+
+---
+
+## 19. Acceptance Criteria
+
+The redesign is considered successful when:
+
+- post-login home is map-first
+- pickup/drop can be selected via current location or search
+- one-way and round-trip are clear and fast
+- date/time selection is not a raw text field
+- quote remains API-driven
+- Bengaluru pricing assumptions are visible
+- existing auth/booking/payment/support flows remain functional
+- mock mode remains functional
+- backend real mode remains functional
+- mobile typecheck passes
+- major states have loading/error/empty designs
+- UI works on compact phone, standard phone, large phone, and tablet
+- primary CTA and text contrast pass accessibility baseline
+
+---
+
+## 20. First Implementation Step After This Document
+
+The next implementation step should be:
+
+1. Rebrand the theme from blue to Rydvrse light green.
+2. Update core primitives and existing screens to consume the new theme without changing behavior.
+3. Typecheck.
+4. Then add map foundation behind a safe fallback.
+
+This order is intentional. It creates the new identity first while minimizing risk, then introduces map complexity only after the visual system is stable.

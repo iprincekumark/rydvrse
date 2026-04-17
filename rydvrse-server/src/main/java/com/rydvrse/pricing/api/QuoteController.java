@@ -42,6 +42,17 @@ public class QuoteController {
                 request.drop() == null ? null : toLocationInput(request.drop()),
                 request.scheduledPickupAt(),
                 request.expectedDurationMinutes(),
+                request.roundedDistanceKm(),
+                request.predictedDriveMinutes(),
+                request.driverPickupDistanceKm(),
+                request.driverPickupEtaMinutes(),
+                request.estimatedPickupCostPaise(),
+                request.transmissionType(),
+                request.carType(),
+                request.carBrandModel(),
+                request.carNumber(),
+                request.roundTripWaitMinutes(),
+                request.safetyAddonOpted(),
                 request.customerNotes()
         )), null);
     }
@@ -69,6 +80,17 @@ public class QuoteController {
             LocationRequest drop,
             @NotNull OffsetDateTime scheduledPickupAt,
             Integer expectedDurationMinutes,
+            Integer roundedDistanceKm,
+            Integer predictedDriveMinutes,
+            Integer driverPickupDistanceKm,
+            Integer driverPickupEtaMinutes,
+            Integer estimatedPickupCostPaise,
+            String transmissionType,
+            String carType,
+            String carBrandModel,
+            String carNumber,
+            Integer roundTripWaitMinutes,
+            Boolean safetyAddonOpted,
             String customerNotes
     ) {
     }

@@ -14,8 +14,8 @@ export function SectionCard({ children }: PropsWithChildren) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: semantic.bg.surface,
-    borderRadius: radius.lg,
-    padding: space[5],
+    borderRadius: radius.md,
+    padding: space[4],
     borderWidth: 1,
     borderColor: semantic.border.soft,
     ...shadows.sm,

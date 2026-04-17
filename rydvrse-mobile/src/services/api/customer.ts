@@ -63,7 +63,7 @@ export const customerApi = {
       }));
     }
 
-    return apiClient.request<ApiEnvelope<QuotePayload>>("/quotes", {
+    const response = await apiClient.request<ApiEnvelope<Record<string, any>>>("/quotes", {
       method: "POST",
       token,
       body,
@@ -71,6 +71,11 @@ export const customerApi = {
         "Idempotency-Key": "quote-request-mobile"
       }
     });
+
+    return {
+      ...response,
+      data: normalizeQuote(response.data)
+    };
   },
 
   async createBooking(token: string, body: Record<string, unknown>) {
@@ -216,3 +221,44 @@ export const customerApi = {
     });
   }
 };
+
+function normalizeQuote(data: Record<string, any>): QuotePayload {
+  const cancellation = data.cancellation_policy_summary;
+  const cancellationSummary =
+    typeof cancellation === "string"
+      ? cancellation
+      : cancellation?.free_until
+        ? `Free cancellation until ${new Date(cancellation.free_until).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}. Fee ${formatPaise(cancellation.late_cancel_fee_paise ?? 0)}.`
+        : "Free cancellation rules are shown before confirmation.";
+
+  const savingsMessage = data.savings_summary?.message;
+  return {
+    quote_id: data.quote_id,
+    expires_at: data.valid_until ?? data.expires_at,
+    service_type: data.service_type,
+    commercial_model: data.commercial_model,
+    pricing_assumptions: data.pricing_assumptions,
+    fare_summary: {
+      amount_paise: data.total_paise ?? data.fare_summary?.amount_paise ?? 0,
+      currency: "INR"
+    },
+    fare_components: (data.components ?? data.fare_components ?? []).map((component: Record<string, any>) => ({
+      code: component.code,
+      label: component.label,
+      amount_paise: component.amount_paise,
+      is_tax: component.is_tax
+    })),
+    driver_payout_preview: data.driver_payout_preview,
+    savings_summary: data.savings_summary,
+    assignment_note: savingsMessage ?? "The quote includes driver pickup access, traffic-time protection, and visible fare components.",
+    cancellation_summary: cancellationSummary
+  };
+}
+
+function formatPaise(amountPaise: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  }).format(amountPaise / 100);
+}

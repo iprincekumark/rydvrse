@@ -28,7 +28,7 @@ export function PrimaryButton({
   leadingIcon,
   trailingIcon,
 }: PrimaryButtonProps) {
-  const iconColor = secondary ? semantic.text.primary : semantic.text.inverted;
+  const iconColor = secondary ? semantic.text.primary : semantic.text.onBrand;
 
   return (
     <Pressable
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.family.bold,
   },
   primaryLabel: {
-    color: semantic.text.inverted,
+    color: semantic.text.onBrand,
   },
   secondaryLabel: {
     color: semantic.text.primary,

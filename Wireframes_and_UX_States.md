@@ -407,22 +407,30 @@ Happy Path Wireframe:
 | Quote                            |
 | Valid for 04:58                  |
 +----------------------------------+
-| Airport Drop                     |
-| Home -> Bengaluru Airport        |
+| One-Way Drop                     |
+| Koramangala -> Whitefield        |
 | Sat, Apr 12 | 8:30 PM            |
 +----------------------------------+
+| Bengaluru Pricing Inputs         |
+| Distance                  31 km  |
+| Traffic ETA              105 min |
+| Driver arrival            24 min |
++----------------------------------+
 | Fare Breakdown                   |
-| Base Charge              Rs 249  |
-| Service Charge           Rs 180  |
-| Night Charge             Rs  99  |
-| Taxes                    Rs  53  |
+| Base: 20 km + 75 min     Rs 299  |
+| Distance fee             Rs  72  |
+| Traffic buffer           Rs  10  |
+| Driver pickup access     Rs  49  |
+| One-way relocation       Rs  59  |
+| Rydvrse Secure           Rs  12  |
+| GST                      Rs  90  |
 | ------------------------------   |
-| Total                    Rs 581  |
+| Total                    Rs 591  |
 +----------------------------------+
 | Notes                            |
-| - No hidden charges              |
-| - Toll/parking extra if applied  |
-| - Cancellation fees may apply    |
+| - Estimated lower than reference |
+| - Driver fairness is protected   |
+| - No hidden surge                |
 +----------------------------------+
 | [Edit]               [Continue]  |
 +----------------------------------+

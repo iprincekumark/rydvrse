@@ -387,6 +387,10 @@ flowchart TD
   - date selector
   - time selector
   - expected duration for hourly/local flows
+  - rounded distance for Bengaluru one-way and round-trip flows
+  - traffic-aware ETA for Bengaluru one-way and round-trip flows
+  - driver pickup distance and pickup ETA estimate
+  - car transmission, type, model, and registration number
   - special instructions field
   - continue/get quote CTA
 - Primary Actions:
@@ -395,6 +399,8 @@ flowchart TD
   - select drop
   - choose schedule
   - choose expected duration
+  - provide distance/time estimate
+  - provide vehicle details
   - request quote
 - Business Rules and Validation:
   - one-way and airport routes require drop location
@@ -402,6 +408,8 @@ flowchart TD
   - service lead time must respect configured minimums
   - airport service may require a terminal or airport direction subtype later, but this is optional for MVP
   - duration input required for local/hourly and round trip flows
+  - one-way and round-trip Bengaluru quote must use rounded distance, traffic ETA, pickup acquisition, and vehicle context when available
+  - if maps data is unavailable, backend may return a fallback-quality quote and the UI must disclose that the estimate is conservative
 - States:
   - empty
   - partially complete
@@ -427,12 +435,25 @@ flowchart TD
   - service summary
   - quote expiry timer
   - fare breakdown:
-    - base booking charge
-    - active time/service charge
-    - one-way return allowance if applicable
+    - base fare or round-trip bundle
+    - distance fee if applicable
+    - traffic-time fee if applicable
+    - driver pickup access fee
+    - one-way relocation allowance if applicable
+    - vehicle adjustment if applicable
+    - capped peak traffic fee if applicable
+    - optional Rydvrse Secure fee
     - night surcharge if applicable
     - taxes
     - toll/parking policy note
+  - pricing assumptions:
+    - rounded distance
+    - traffic ETA
+    - included distance/time
+    - driver pickup ETA and SLA
+    - estimate quality
+  - savings or bundle explanation
+  - driver fairness note without exposing unnecessary driver-sensitive finance details to the customer
   - cancellation policy summary
   - assignment/availability note
   - continue CTA

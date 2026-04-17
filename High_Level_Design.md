@@ -940,7 +940,8 @@ Pricing must satisfy three parties simultaneously:
 Supported price structures:
 
 - `Scheduled Local`: minimum duration plus time increments
-- `One-Way Drop`: local price plus return allowance by distance or zone slab
+- `One-Way Drop`: Bengaluru hybrid distance-time price plus pickup access and relocation allowance
+- `Round Trip`: discounted single-driver bundle using distance, time, and one pickup acquisition cost
 - `Airport`: zone-based fixed fare
 - `Late Night`: night surcharge overlay
 
@@ -952,6 +953,13 @@ Supported price structures:
 - service type
 - booking lead time
 - expected duration
+- rounded distance in kilometers
+- traffic-aware predicted drive time
+- driver pickup distance and driver pickup ETA
+- estimated driver acquisition cost
+- car transmission type
+- car category/type
+- car brand/model and registration context
 - day/time window
 - night band rules
 - toll and parking flags
@@ -960,11 +968,42 @@ Supported price structures:
 
 - base booking charge
 - active service charge
-- one-way return allowance
+- distance fee
+- traffic-time fee
+- driver pickup access fee
+- one-way relocation allowance
+- round-trip bundle discount/effectiveness credit
+- vehicle complexity adjustment
+- capped peak traffic risk fee
 - night surcharge
 - priority or express surcharge
+- optional Rydvrse Secure fee
 - tax
 - optional toll and parking reimbursement
+
+### 18.3.1 Bengaluru Hybrid Launch Model
+
+For Bengaluru, Rydvrse must not price one-way trips using distance alone. The MVP quote engine uses:
+
+`fare = base + distance_fee + traffic_time_fee + pickup_access_fee + relocation_or_bundle_component + vehicle_adjustment + peak_fee + safety_fee + night_fee + tax`
+
+One-way defaults:
+
+- base `Rs. 299` covers first `20 km` and first `75 min`
+- `21-35 km` charged at `Rs. 6.50/km`
+- `36+ km` charged at `Rs. 8/km`
+- extra traffic minutes charged at `Rs. 1.75/min` after included minutes
+- driver pickup access capped at `Rs. 49`
+- one-way relocation allowance defaults to `Rs. 59`
+
+Round-trip defaults:
+
+- base bundle `Rs. 649` covers first `50 km` and `240 min`
+- extra distance charged at `Rs. 6/km`
+- extra time charged at `Rs. 1.50/min`
+- driver pickup access charged once, not twice
+
+This model is designed to beat common one-way reference pricing while still funding driver earnings and platform margin.
 
 ### 18.4 Quote Rules
 

@@ -521,6 +521,9 @@ Rules like cancellation eligibility, trip-start permission, assignment eligibili
 - quote creation
 - serviceability validation
 - pricing plan resolution
+- Bengaluru hybrid distance-time pricing
+- driver pickup acquisition estimation
+- driver payout preview generation
 - tax and component breakdown
 - modification preview
 - cancellation preview
@@ -548,7 +551,10 @@ Rules like cancellation eligibility, trip-start permission, assignment eligibili
 | `ServiceabilityService` | city and zone eligibility checks |
 | `QuoteService` | generate quote from booking inputs |
 | `PricingPlanResolver` | resolve active plan version |
-| `FareBreakdownBuilder` | compute components |
+| `BengaluruHybridFareCalculator` | compute one-way and round-trip distance-time fare components |
+| `DriverAcquisitionEstimator` | estimate pickup access cost from driver pickup distance and ETA |
+| `DriverPayoutPreviewCalculator` | compute driver earning preview from the same quote assumptions |
+| `FareBreakdownBuilder` | normalize components into stable customer/admin line items |
 | `TaxCalculator` | apply tax profile |
 | `ModificationPreviewService` | preview changes for existing booking |
 | `CancellationPreviewService` | preview cancellation fee and refund |
@@ -560,8 +566,53 @@ Rules like cancellation eligibility, trip-start permission, assignment eligibili
 - `LeadTimeBucketPolicy`
 - `NightSurchargePolicy`
 - `OneWayBandPolicy`
+- `BengaluruDistanceTimePolicy`
+- `PickupAccessFeePolicy`
+- `VehicleComplexityPolicy`
+- `PeakTrafficRiskPolicy`
+- `DriverPayoutFloorPolicy`
 - `AirportFarePolicy`
 - `CancellationFeePolicy`
+
+### Bengaluru Hybrid Quote Flow
+
+1. `QuoteController` validates the customer request and maps the mobile/API payload to `CreateQuoteCommand`.
+2. `ServiceabilityService` confirms city, pickup zone, service type, and schedule are serviceable.
+3. `QuoteService` resolves the active pricing plan and tax profile.
+4. `BengaluruHybridFareCalculator` is selected for `SCHEDULED_ONE_WAY`, `ONE_WAY_DROP`, `SCHEDULED_ROUND_TRIP`, or `ROUND_TRIP` style requests in Bengaluru.
+5. The calculator normalizes distance and time inputs:
+   - distance rounds up to whole kilometers
+   - missing route ETA falls back to `expected_duration_minutes`
+   - missing pickup acquisition uses conservative default assumptions
+6. `DriverAcquisitionEstimator` computes pickup access fee with floor/cap.
+7. `DriverPayoutPreviewCalculator` computes the corresponding driver payout preview and verifies payout floor.
+8. `TaxCalculator` applies the active tax profile.
+9. `QuoteService` stores:
+   - immutable quote row
+   - quote components
+   - quote metadata containing pricing assumptions, driver payout preview, and savings summary
+10. `QuoteCreatedEvent` is published for analytics, ops monitoring, and future notification flows.
+
+### Bengaluru Hybrid Component Contract
+
+Customer-visible quote components must use stable codes:
+
+- `BLR_ONE_WAY_BASE`
+- `BLR_DISTANCE_20_35`
+- `BLR_DISTANCE_35_PLUS`
+- `BLR_TRAFFIC_TIME`
+- `BLR_PICKUP_ACCESS`
+- `BLR_ONE_WAY_RELOCATION`
+- `BLR_ROUND_TRIP_BUNDLE_BASE`
+- `BLR_ROUND_TRIP_DISTANCE`
+- `BLR_ROUND_TRIP_TIME`
+- `BLR_VEHICLE_ADJUSTMENT`
+- `BLR_PEAK_TRAFFIC_FEE`
+- `RYD_SECURE`
+- `NIGHT_SURCHARGE`
+- `GST`
+
+The mobile app must not infer pricing logic from display labels. It must use component codes for icons, grouping, and analytics.
 
 ### Repositories
 

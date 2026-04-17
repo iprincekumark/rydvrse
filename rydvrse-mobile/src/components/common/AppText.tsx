@@ -1,9 +1,9 @@
 import React, { PropsWithChildren } from "react";
-import { StyleProp, Text, TextStyle } from "react-native";
+import { StyleProp, Text, TextProps, TextStyle } from "react-native";
 
 import { typography } from "@/theme";
 
-type AppTextProps = PropsWithChildren<{
+type AppTextProps = PropsWithChildren<TextProps & {
   variant?: keyof typeof typography.text;
   style?: StyleProp<TextStyle>;
 }>;
@@ -12,6 +12,6 @@ type AppTextProps = PropsWithChildren<{
  * Legacy AppText — still uses old variant keys (hero, title, section, body, bodyStrong, caption, overline).
  * Prefer the new primitives/Text.tsx for new code.
  */
-export function AppText({ children, variant = "body", style }: AppTextProps) {
-  return <Text style={[typography.text[variant], style]}>{children}</Text>;
+export function AppText({ children, variant = "body", style, ...props }: AppTextProps) {
+  return <Text {...props} style={[typography.text[variant], style]}>{children}</Text>;
 }

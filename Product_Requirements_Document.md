@@ -397,6 +397,11 @@ Enable customers to understand service availability and total expected pricing b
 - `BR-B5` The system shall store a quote snapshot when a booking is created.
 - `BR-B6` The system shall explain service unavailability when a quote cannot be generated.
 - `BR-B7` The pricing model shall support city, zone, lead time, day/time window, night band, and service type inputs.
+- `BR-B8` For Bengaluru launch, the pricing model shall support hybrid distance-time inputs so one-way and round-trip fares reflect traffic reality instead of distance alone.
+- `BR-B9` For one-way trips, the quote shall display base fare, distance fee, traffic-time fee, driver pickup access fee, one-way relocation allowance, optional safety fee, taxes, and any peak/night charge separately.
+- `BR-B10` For round trips, the quote shall display bundled base fare, included distance/time, any extra distance/time fee, single pickup access fee, bundle savings explanation, taxes, and any peak/night charge separately.
+- `BR-B11` The quote response shall include a driver payout preview for internal/debug/admin visibility and future driver-facing offer transparency.
+- `BR-B12` The system shall avoid opaque surge pricing in MVP; peak pricing must be a visible capped traffic risk fee.
 
 ### User Stories
 
@@ -418,17 +423,25 @@ As ops/admin, I want the pricing rules to be configurable by city and zone so th
 - airport service requested from unsupported area
 - quote requested for a past time
 - one-way service requested without drop location
+- distance or traffic ETA unavailable from maps provider
+- driver pickup acquisition estimate unavailable
+- predicted pickup ETA above the standard 30-minute SLA
+- route distance is fractional and must be rounded up
+- automatic/luxury/SUV vehicle requires skill or payout adjustment
 - quote expires before booking confirmation
 - multiple rapid quote refreshes
 - location permission denied
 
 ### Acceptance Criteria
 
-- Given a serviceable request, when the customer requests a quote, then the system returns the quote within the target latency and includes base fare, active service charge, night charge if any, one-way return allowance if any, taxes, and policy notes.
+- Given a serviceable request, when the customer requests a quote, then the system returns the quote within the target latency and includes all active fare components, taxes, policy notes, pricing assumptions, and quote expiry.
+- Given a Bengaluru one-way quote, when distance, time, and pickup acquisition inputs are present, then the fare shall be calculated using the hybrid one-way formula and the response shall show distance, traffic time, pickup access, relocation, safety, and tax components separately.
+- Given a Bengaluru round-trip quote, when distance and time inputs are present, then the fare shall be calculated using the discounted round-trip bundle formula and shall not charge pickup acquisition twice.
 - Given a non-serviceable request, when the customer requests a quote, then the system returns no quote and provides a clear reason.
 - Given a quote with an expiry window, when the customer confirms within the validity window, then the booking shall use the quote snapshot without recalculating hidden charges.
 - Given an expired quote, when the customer attempts to confirm, then the system shall require a fresh quote before booking.
 - Given a night-time service, when the customer views the quote, then the night surcharge shall be displayed explicitly rather than silently added later.
+- Given peak-hour Bengaluru conditions, when a capped traffic risk fee applies, then the customer shall see it as an explicit line item and the driver payout preview shall include the corresponding peak bonus.
 
 ## 15.3 Epic C: Booking Creation, Modification, and Cancellation
 

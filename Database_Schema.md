@@ -1434,6 +1434,25 @@ Columns:
 | is_active | boolean | No | active rule |
 | created_at | timestamptz | No | default now |
 
+Supported Bengaluru hybrid rule types:
+
+- `BLR_ONE_WAY_BASE`
+- `BLR_DISTANCE_20_35`
+- `BLR_DISTANCE_35_PLUS`
+- `BLR_TRAFFIC_TIME`
+- `BLR_PICKUP_ACCESS_FLOOR`
+- `BLR_PICKUP_ACCESS_CAP`
+- `BLR_ONE_WAY_RELOCATION`
+- `BLR_ROUND_TRIP_BUNDLE_BASE`
+- `BLR_ROUND_TRIP_EXTRA_KM`
+- `BLR_ROUND_TRIP_EXTRA_MIN`
+- `BLR_VEHICLE_ADJUSTMENT`
+- `BLR_PEAK_TRAFFIC_FEE`
+- `RYD_SECURE`
+- `NIGHT_SURCHARGE`
+
+Hybrid pricing engines may use hard-coded launch constants only as an implementation bootstrap. Production pricing changes must be represented by versioned `pricing_rule` rows or by versioned `business_config` payloads before multi-city rollout.
+
 Indexes:
 
 - btree `(pricing_plan_id, service_type, rule_type, is_active)`
@@ -1494,6 +1513,29 @@ Columns:
 | requested_at | timestamptz | No | creation timestamp |
 | created_at | timestamptz | No | default now |
 | metadata | jsonb | No | request snapshot |
+
+Required `metadata` keys for Bengaluru hybrid quotes:
+
+| Key | Type | Notes |
+|---|---|---|
+| `commercial_model` | text | e.g. `BLR_HYBRID_ONE_WAY_V1`, `BLR_HYBRID_ROUND_TRIP_V1` |
+| `lead_time_bucket` | text | resolved lead-time bucket |
+| `rounded_distance_km` | integer | rounded-up route distance used for price |
+| `predicted_drive_minutes` | integer | traffic-aware route ETA used for price |
+| `included_distance_km` | integer | distance included in base/bundle |
+| `included_minutes` | integer | traffic minutes included before time fee |
+| `driver_pickup_distance_km` | integer | estimated driver acquisition distance |
+| `driver_pickup_eta_minutes` | integer | estimated driver acquisition ETA |
+| `estimated_pickup_cost_paise` | bigint | customer-facing pickup acquisition component before cap/floor |
+| `pickup_arrival_sla_minutes` | integer | Bengaluru launch target, default `30` |
+| `transmission_type` | text | matching and vehicle complexity input |
+| `car_type` | text | matching and vehicle complexity input |
+| `car_brand_model` | text | display/ops context |
+| `car_number_masked` | text | masked vehicle registration, if captured |
+| `safety_addon_opted` | boolean | whether safety component was included |
+| `estimate_quality` | text | `CLIENT_OR_MAP_ESTIMATE`, `SERVER_ESTIMATE`, `FALLBACK` |
+| `driver_payout_preview` | json | payout component preview calculated at quote time |
+| `savings_summary` | json | optional customer-facing comparison against reference model |
 
 Indexes:
 

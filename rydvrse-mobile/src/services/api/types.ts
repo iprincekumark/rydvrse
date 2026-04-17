@@ -26,6 +26,19 @@ export type QuotePayload = {
   quote_id: string;
   expires_at: string;
   service_type: string;
+  commercial_model?: string;
+  pricing_assumptions?: {
+    rounded_distance_km?: number;
+    predicted_drive_minutes?: number;
+    included_distance_km?: number;
+    included_minutes?: number;
+    driver_pickup_distance_km?: number;
+    driver_pickup_eta_minutes?: number;
+    pickup_arrival_sla_minutes?: number;
+    transmission_type?: string;
+    car_type?: string;
+    estimate_quality?: string;
+  };
   fare_summary: {
     amount_paise: number;
     currency: "INR";
@@ -34,7 +47,21 @@ export type QuotePayload = {
     code: string;
     label: string;
     amount_paise: number;
+    is_tax?: boolean;
   }>;
+  driver_payout_preview?: {
+    total_payout_paise: number;
+    components: Array<{
+      code: string;
+      label: string;
+      amount_paise: number;
+    }>;
+  };
+  savings_summary?: {
+    reference_total_paise?: number;
+    estimated_savings_paise?: number;
+    message?: string;
+  };
   assignment_note: string;
   cancellation_summary: string;
 };

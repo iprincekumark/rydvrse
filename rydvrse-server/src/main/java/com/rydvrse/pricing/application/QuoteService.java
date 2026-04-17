@@ -51,6 +51,7 @@ public class QuoteService {
     private final JsonNodeUtils jsonNodeUtils;
     private final OutboxService outboxService;
     private final RydvrseProperties rydvrseProperties;
+    private final BengaluruHybridFareCalculator bengaluruHybridFareCalculator;
 
     public QuoteService(
             CustomerProfileService customerProfileService,
@@ -64,7 +65,8 @@ public class QuoteService {
             QuoteComponentRepository quoteComponentRepository,
             JsonNodeUtils jsonNodeUtils,
             OutboxService outboxService,
-            RydvrseProperties rydvrseProperties
+            RydvrseProperties rydvrseProperties,
+            BengaluruHybridFareCalculator bengaluruHybridFareCalculator
     ) {
         this.customerProfileService = customerProfileService;
         this.currentActorService = currentActorService;
@@ -78,15 +80,17 @@ public class QuoteService {
         this.jsonNodeUtils = jsonNodeUtils;
         this.outboxService = outboxService;
         this.rydvrseProperties = rydvrseProperties;
+        this.bengaluruHybridFareCalculator = bengaluruHybridFareCalculator;
     }
 
     @Transactional
     public Map<String, Object> createQuote(CreateQuoteCommand command) {
         currentActorService.requireActor(ActorType.CUSTOMER);
+        String serviceType = normalizeServiceType(command.serviceType());
         CustomerProfileEntity customerProfile = customerProfileService.requireCurrentProfile();
         ServiceabilityService.ServiceabilityResult serviceability = serviceabilityService.check(
                 command.pickup().cityId(),
-                command.serviceType(),
+                serviceType,
                 command.pickup().latitude(),
                 command.pickup().longitude(),
                 command.scheduledPickupAt()
@@ -100,10 +104,35 @@ public class QuoteService {
 
         UUID airportBandId = null;
         UUID oneWayBandId = null;
-        List<PricingRuleEntity> rules = pricingRuleRepository.findByPricingPlanIdAndServiceTypeAndActiveTrue(pricingContext.pricingPlan().getId(), command.serviceType());
+        List<PricingRuleEntity> rules = pricingRuleRepository.findByPricingPlanIdAndServiceTypeAndActiveTrue(pricingContext.pricingPlan().getId(), serviceType);
         List<LineItem> lineItems = new ArrayList<>();
+        Map<String, Object> pricingMetadata = new LinkedHashMap<>();
+        pricingMetadata.put("lead_time_bucket", leadTimeBucket);
+        pricingMetadata.put("customer_notes", command.customerNotes() == null ? "" : command.customerNotes());
 
-        if ("AIRPORT".equals(command.serviceType())) {
+        if (bengaluruHybridFareCalculator.supports(serviceType)) {
+            BengaluruHybridFareCalculator.HybridQuote hybridQuote = bengaluruHybridFareCalculator.calculate(new BengaluruHybridFareCalculator.HybridQuoteRequest(
+                    serviceType,
+                    command.roundedDistanceKm(),
+                    command.predictedDriveMinutes(),
+                    command.expectedDurationMinutes(),
+                    command.driverPickupDistanceKm(),
+                    command.driverPickupEtaMinutes(),
+                    command.estimatedPickupCostPaise(),
+                    command.transmissionType(),
+                    command.carType(),
+                    command.carBrandModel(),
+                    command.carNumber(),
+                    command.safetyAddonOpted() == null || command.safetyAddonOpted(),
+                    isPeakWindow(command.scheduledPickupAt()),
+                    isNight(command.scheduledPickupAt())
+            ));
+            hybridQuote.lineItems().forEach(item -> lineItems.add(new LineItem(item.code(), item.label(), item.amountPaise(), false, item.metadata())));
+            pricingMetadata.put("commercial_model", hybridQuote.commercialModel());
+            pricingMetadata.put("pricing_assumptions", hybridQuote.pricingAssumptions());
+            pricingMetadata.put("driver_payout_preview", hybridQuote.driverPayoutPreview());
+            pricingMetadata.put("savings_summary", hybridQuote.savingsSummary());
+        } else if ("AIRPORT".equals(serviceType)) {
             airportBandId = airportZoneBandRepository.findByCityIdAndServiceZoneId(command.pickup().cityId(), serviceability.pickupZoneId())
                     .map(AirportZoneBandEntity::getId)
                     .orElseThrow(() -> ApiException.unprocessable(ErrorCode.SERVICEABILITY_UNAVAILABLE, "Airport band unavailable"));
@@ -121,7 +150,7 @@ public class QuoteService {
                 PricingRuleEntity surchargeRule = pickRule(rules, "SURCHARGE", null, null, null, "PRIORITY");
                 lineItems.add(new LineItem("PRIORITY_SURCHARGE", "Priority booking surcharge", surchargeRule.getAmountPaise(), false, Map.of("lead_time_bucket", leadTimeBucket)));
             }
-            if ("SCHEDULED_ONE_WAY".equals(command.serviceType()) && dropZone != null) {
+            if ("SCHEDULED_ONE_WAY".equals(serviceType) && dropZone != null) {
                 oneWayBandId = oneWayBandRepository.findByCityIdAndSourceZoneIdAndDestinationZoneId(
                                 command.pickup().cityId(),
                                 serviceability.pickupZoneId(),
@@ -132,7 +161,7 @@ public class QuoteService {
                 PricingRuleEntity allowanceRule = pickRule(rules, "ONE_WAY_ALLOWANCE", null, null, oneWayBandId, null);
                 lineItems.add(new LineItem("ONE_WAY_ALLOWANCE", "One-way return allowance", allowanceRule.getAmountPaise(), false, Map.of("band_id", oneWayBandId)));
             }
-            if ("LATE_NIGHT".equals(command.serviceType()) || isNight(command.scheduledPickupAt())) {
+            if ("LATE_NIGHT".equals(serviceType) || isNight(command.scheduledPickupAt())) {
                 PricingRuleEntity nightRule = pickRule(rules, "NIGHT_SURCHARGE", null, null, null, null);
                 lineItems.add(new LineItem("NIGHT_SURCHARGE", "Night surcharge", nightRule.getAmountPaise(), false, Map.of()));
             }
@@ -149,7 +178,7 @@ public class QuoteService {
         QuoteEntity quote = new QuoteEntity();
         quote.setCustomerProfileId(customerProfile.getId());
         quote.setCityId(command.pickup().cityId());
-        quote.setServiceType(command.serviceType());
+        quote.setServiceType(serviceType);
         quote.setPickupZoneId(serviceability.pickupZoneId());
         quote.setDropZoneId(dropZone == null ? null : dropZone.zoneId());
         quote.setAirportZoneBandId(airportBandId);
@@ -167,10 +196,7 @@ public class QuoteService {
         quote.setQuoteStatus("ACTIVE");
         quote.setExpiresAt(OffsetDateTime.now().plusMinutes(rydvrseProperties.getPricing().getQuoteExpiryMinutes()));
         quote.setRequestedAt(OffsetDateTime.now());
-        quote.setMetadata(jsonNodeUtils.toJsonNode(Map.of(
-                "lead_time_bucket", leadTimeBucket,
-                "customer_notes", command.customerNotes() == null ? "" : command.customerNotes()
-        )));
+        quote.setMetadata(jsonNodeUtils.toJsonNode(pricingMetadata));
         quoteRepository.save(quote);
 
         int sortOrder = 1;
@@ -205,6 +231,7 @@ public class QuoteService {
     }
 
     private Map<String, Object> buildQuoteResponse(QuoteEntity quote, List<LineItem> lineItems, JsonNode cancellationPolicy, String leadTimeBucket) {
+        JsonNode metadata = quote.getMetadata() == null ? JsonNodeFactory.instance.objectNode() : quote.getMetadata();
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("quote_id", quote.getId());
         response.put("status", quote.getQuoteStatus());
@@ -215,15 +242,20 @@ public class QuoteService {
         response.put("expected_duration_minutes", quote.getQuotedDurationMinutes());
         response.put("lead_time_bucket", leadTimeBucket);
         response.put("pricing_plan_version", quote.getPricingPlanId().toString());
+        response.put("commercial_model", metadata.path("commercial_model").asText("CONFIG_RULE_V1"));
+        response.put("pricing_assumptions", metadata.path("pricing_assumptions"));
         response.put("components", lineItems.stream().map(lineItem -> Map.of(
                 "code", lineItem.code(),
                 "label", lineItem.label(),
                 "amount_paise", lineItem.amountPaise(),
-                "is_tax", lineItem.tax()
+                "is_tax", lineItem.tax(),
+                "metadata", lineItem.metadata()
         )).toList());
         response.put("subtotal_paise", quote.getSubtotalPaise());
         response.put("tax_paise", quote.getTaxPaise());
         response.put("total_paise", quote.getTotalPaise());
+        response.put("driver_payout_preview", metadata.path("driver_payout_preview"));
+        response.put("savings_summary", metadata.path("savings_summary"));
         response.put("valid_until", quote.getExpiresAt());
         response.put("cancellation_policy_summary", Map.of(
                 "free_until", quote.getScheduledPickupAt().minusMinutes(cancellationPolicy.path("free_until_minutes_before_pickup").asLong(60)),
@@ -270,7 +302,12 @@ public class QuoteService {
 
     private boolean isNight(OffsetDateTime scheduledPickupAt) {
         int hour = scheduledPickupAt.atZoneSameInstant(java.time.ZoneId.of("Asia/Kolkata")).getHour();
-        return hour >= 20 || hour < 5;
+        return hour >= 22 || hour < 6;
+    }
+
+    private boolean isPeakWindow(OffsetDateTime scheduledPickupAt) {
+        int hour = scheduledPickupAt.atZoneSameInstant(java.time.ZoneId.of("Asia/Kolkata")).getHour();
+        return (hour >= 8 && hour < 11) || (hour >= 17 && hour < 20);
     }
 
     private String leadTimeBucket(OffsetDateTime scheduledPickupAt) {
@@ -290,6 +327,17 @@ public class QuoteService {
             LocationInput drop,
             OffsetDateTime scheduledPickupAt,
             Integer expectedDurationMinutes,
+            Integer roundedDistanceKm,
+            Integer predictedDriveMinutes,
+            Integer driverPickupDistanceKm,
+            Integer driverPickupEtaMinutes,
+            Integer estimatedPickupCostPaise,
+            String transmissionType,
+            String carType,
+            String carBrandModel,
+            String carNumber,
+            Integer roundTripWaitMinutes,
+            Boolean safetyAddonOpted,
             String customerNotes
     ) {
     }
@@ -306,5 +354,14 @@ public class QuoteService {
     }
 
     private record LineItem(String code, String label, long amountPaise, boolean tax, Map<String, Object> metadata) {
+    }
+
+    private String normalizeServiceType(String serviceType) {
+        return switch (serviceType == null ? "" : serviceType) {
+            case "ONE_WAY_DROP" -> "SCHEDULED_ONE_WAY";
+            case "ROUND_TRIP" -> "SCHEDULED_ROUND_TRIP";
+            case "LATE_NIGHT_SAFE_RETURN" -> "LATE_NIGHT";
+            default -> serviceType;
+        };
     }
 }
