@@ -1,10 +1,12 @@
 import React from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
+import { AppIcon } from "@/assets/icons/AppIcon";
 import { BrandLockup } from "@/assets/brand/BrandLockup";
 import { HeaderArtwork, HeaderArtworkVariant } from "@/assets/illustrations/HeaderArtwork";
 import { AppText } from "@/components/common/AppText";
-import { semantic, spacing } from "@/theme";
+import { colors, semantic, spacing } from "@/theme";
 
 /**
  * Legacy HeaderBlock — updated with new spacing.
@@ -15,19 +17,47 @@ export function HeaderBlock({
   title,
   subtitle,
   visualVariant,
+  showBack = true,
+  onBack,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   visualVariant?: HeaderArtworkVariant;
+  showBack?: boolean;
+  onBack?: () => void;
 }) {
   const { width } = useWindowDimensions();
+  const navigation = useNavigation<any>();
   const wide = width >= 760 && Boolean(visualVariant);
   const heroScaleStyle = width >= 1024 ? styles.heroDesktop : width >= 640 ? styles.heroTablet : styles.heroMobile;
+
+  const canGoBack = showBack && (onBack !== undefined || (navigation && navigation.canGoBack && navigation.canGoBack()));
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (navigation && navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  };
 
   return (
     <View style={[styles.wrapper, wide && styles.wrapperWide]}>
       <View style={styles.copy}>
+        {canGoBack ? (
+          <Pressable
+            onPress={handleBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={8}
+            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.85 }]}
+          >
+            <AppIcon name="arrowLeft" size={18} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+          </Pressable>
+        ) : null}
         <BrandLockup compact />
         {eyebrow ? <AppText variant="overline">{eyebrow}</AppText> : null}
         <AppText variant="hero" style={[heroScaleStyle, wide && styles.heroWide]}>{title}</AppText>
@@ -56,6 +86,18 @@ const styles = StyleSheet.create({
   copy: {
     gap: spacing.xs,
     flex: 1,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+    marginBottom: spacing.xs,
   },
   heroMobile: {
     fontSize: 32,

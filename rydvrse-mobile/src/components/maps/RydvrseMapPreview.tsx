@@ -8,6 +8,9 @@ import { colors, radius, semantic, shadows, space } from "@/theme";
 type RydvrseMapPreviewProps = {
   pickupLabel: string;
   dropLabel: string;
+  serviceType?: string;
+  distanceLabel?: string;
+  durationLabel?: string;
   onUseCurrentLocation?: () => void;
   onOpenSearch?: () => void;
   onRecenter?: () => void;
@@ -16,10 +19,15 @@ type RydvrseMapPreviewProps = {
 export function RydvrseMapPreview({
   pickupLabel,
   dropLabel,
+  serviceType = "ONE_WAY_DROP",
+  distanceLabel,
+  durationLabel,
   onUseCurrentLocation,
   onOpenSearch,
   onRecenter,
 }: RydvrseMapPreviewProps) {
+  const isRoundTrip = serviceType === "ROUND_TRIP";
+
   return (
     <View style={styles.mapShell} accessibilityLabel="Rydvrse map preview with pickup and drop route">
       <View style={styles.gridLayer}>
@@ -34,6 +42,20 @@ export function RydvrseMapPreview({
       <View style={[styles.road, styles.roadTwo]} />
       <View style={[styles.road, styles.roadThree]} />
       <View style={styles.routeLine} />
+      {isRoundTrip ? <View style={styles.returnRouteLine} /> : null}
+      {isRoundTrip ? <View style={styles.returnRouteDash} /> : null}
+
+      {durationLabel || distanceLabel ? (
+        <View style={styles.etaChip}>
+          <AppIcon name="eta" size={14} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+          <AppText variant="caption" style={styles.etaChipText}>
+            {durationLabel ?? ""}
+            {durationLabel && distanceLabel ? " · " : ""}
+            {distanceLabel ?? ""}
+          </AppText>
+        </View>
+      ) : null}
+
       <View style={[styles.marker, styles.pickupMarker]}>
         <View style={styles.markerDot} />
       </View>
@@ -139,6 +161,46 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.brand.strong,
     transform: [{ rotate: "-32deg" }],
+  },
+  returnRouteLine: {
+    position: "absolute",
+    width: "58%",
+    height: 5,
+    top: "50%",
+    left: "22%",
+    borderRadius: radius.full,
+    backgroundColor: "rgba(143, 214, 47, 0.35)",
+    transform: [{ rotate: "-32deg" }],
+  },
+  returnRouteDash: {
+    position: "absolute",
+    width: "20%",
+    height: 3,
+    top: "34%",
+    left: "40%",
+    borderRadius: radius.full,
+    backgroundColor: colors.brand.primary,
+    transform: [{ rotate: "12deg" }],
+  },
+  etaChip: {
+    position: "absolute",
+    top: space[4] + 48,
+    alignSelf: "center",
+    left: "50%",
+    marginLeft: -70,
+    minWidth: 140,
+    height: 30,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space[1],
+    paddingHorizontal: space[3],
+    ...shadows.sm,
+  },
+  etaChipText: {
+    color: semantic.text.primary,
   },
   marker: {
     position: "absolute",

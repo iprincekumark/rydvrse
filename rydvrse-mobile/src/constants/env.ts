@@ -11,5 +11,7 @@ export const env = {
     apiKey: process.env.EXPO_PUBLIC_OLA_MAPS_API_KEY ?? "",
     directionsUrl: process.env.EXPO_PUBLIC_OLA_MAPS_DIRECTIONS_URL ?? "https://api.olamaps.io/routing/v1/directions",
     geocodeUrl: process.env.EXPO_PUBLIC_OLA_MAPS_GEOCODE_URL ?? "https://api.olamaps.io/places/v1/geocode",
+    autocompleteUrl: process.env.EXPO_PUBLIC_OLA_MAPS_AUTOCOMPLETE_URL ?? "https://api.olamaps.io/places/v1/autocomplete",
+    reverseGeocodeUrl: process.env.EXPO_PUBLIC_OLA_MAPS_REVERSE_GEOCODE_URL ?? "https://api.olamaps.io/places/v1/reverse-geocode"
   }
 };

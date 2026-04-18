@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppIcon } from "@/assets/icons/AppIcon";
 import { ServiceIcon } from "@/assets/icons/ServiceIcon";
 import { BottomActionBar } from "@/components/layout/BottomActionBar";
 import { BookingHomeSheet } from "@/components/booking/BookingHomeSheet";
 import { HeaderBlock } from "@/components/layout/HeaderBlock";
+import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { Screen } from "@/components/layout/Screen";
 import { AppText } from "@/components/common/AppText";
 import { TextField } from "@/components/forms/TextField";
@@ -20,11 +22,13 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Skeleton } from "@/components/loaders/Skeleton";
 import { FareBreakdown } from "@/components/patterns/FareBreakdown";
 import { RydvrseMapPreview } from "@/components/maps/RydvrseMapPreview";
-import { supportCategories } from "@/constants/support";
+import { SUPPORT_FAQS, SupportFaq, searchFaqs } from "@/constants/supportFaq";
 import { CustomerServiceType, serviceTypeOptions } from "@/constants/serviceTypes";
 import { authApi } from "@/services/api/auth";
 import { customerApi } from "@/services/api/customer";
 import { calculateRouteEstimate } from "@/services/maps/routeEstimator";
+import { reverseGeocode } from "@/services/maps/olaPlacesService";
+import { useCurrentLocation } from "@/hooks/useCurrentLocation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { markProfileComplete, setActiveBooking, setBookings, setQuote, updateBookingForm } from "@/store/customerSlice";
 import { hydrateSession, logout } from "@/store/sessionSlice";
@@ -387,8 +391,22 @@ export function CustomerHomeScreen() {
   const { width, height } = useWindowDimensions();
   const bookingForm = useAppSelector((state) => state.customer.bookingForm);
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
   const isWide = width >= 720;
-  const mapHeight = isWide ? Math.max(520, height - 120) : Math.max(230, Math.min(310, height * 0.36));
+  const mapHeight = isWide
+    ? Math.max(520, height - 120)
+    : Math.max(280, Math.min(360, height * 0.42));
+  const { coords, usingFallback, refresh } = useCurrentLocation({ autoRequest: true });
+  const [resolvingPickup, setResolvingPickup] = useState(false);
+
+  const distanceLabel = useMemo(() => {
+    const km = parsePositiveInt(bookingForm.distanceKm, 0);
+    return km ? `${km} km` : undefined;
+  }, [bookingForm.distanceKm]);
+  const durationLabel = useMemo(() => {
+    const mins = parsePositiveInt(bookingForm.predictedDriveMinutes, 0);
+    return mins ? `${mins} min` : undefined;
+  }, [bookingForm.predictedDriveMinutes]);
 
   useEffect(() => {
     let active = true;
@@ -422,25 +440,68 @@ export function CustomerHomeScreen() {
     };
   }, [bookingForm.drop, bookingForm.pickup, bookingForm.serviceType, dispatch]);
 
-  const handleGetFare = async () => {
+  const handleUseCurrentLocation = useCallback(async () => {
+    if (resolvingPickup) {
+      return;
+    }
+    try {
+      setResolvingPickup(true);
+      if (usingFallback) {
+        await refresh();
+      }
+      const reverse = await reverseGeocode(coords);
+      dispatch(updateBookingForm({ pickup: reverse.label }));
+    } finally {
+      setResolvingPickup(false);
+    }
+  }, [coords, dispatch, refresh, resolvingPickup, usingFallback]);
+
+  const handleOpenLocationSearch = useCallback(
+    (field: "pickup" | "drop") => {
+      navigation.navigate("CustomerLocationPicker", {
+        field,
+        seed: field === "pickup" ? bookingForm.pickup : bookingForm.drop,
+      });
+    },
+    [bookingForm.drop, bookingForm.pickup, navigation]
+  );
+
+  const handleGetFare = useCallback(async () => {
     await refreshRouteEstimate(dispatch, bookingForm);
     navigation.navigate("CustomerQuote");
-  };
+  }, [bookingForm, dispatch, navigation]);
 
   return (
     <Screen padded={false} scrollable={false} variant="map" backgroundColor={semantic.bg.app}>
       <View style={[styles.homeCanvas, isWide && styles.homeCanvasWide]}>
-        <View style={[styles.homeMapPanel, { height: mapHeight }, isWide && styles.homeMapPanelWide]}>
+        <View
+          style={[
+            styles.homeMapPanel,
+            { height: mapHeight, paddingTop: insets.top },
+            isWide && styles.homeMapPanelWide,
+          ]}
+        >
           <RydvrseMapPreview
             pickupLabel={bookingForm.pickup}
             dropLabel={bookingForm.drop}
-            onUseCurrentLocation={() => dispatch(updateBookingForm({ pickup: "Current location • Bengaluru" }))}
-            onOpenSearch={() => navigation.navigate("CustomerServiceSetup")}
-            onRecenter={() => dispatch(updateBookingForm({ pickup: bookingForm.pickup || "Koramangala 4th Block" }))}
+            serviceType={bookingForm.serviceType}
+            distanceLabel={distanceLabel}
+            durationLabel={durationLabel}
+            onUseCurrentLocation={handleUseCurrentLocation}
+            onOpenSearch={() => handleOpenLocationSearch("pickup")}
+            onRecenter={() => {
+              void refresh();
+            }}
           />
         </View>
 
-        <View style={[styles.homeSheetPanel, isWide && styles.homeSheetPanelWide]}>
+        <View
+          style={[
+            styles.homeSheetPanel,
+            { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+            isWide && styles.homeSheetPanelWide,
+          ]}
+        >
           <BookingHomeSheet
             serviceType={bookingForm.serviceType}
             pickup={bookingForm.pickup}
@@ -448,7 +509,7 @@ export function CustomerHomeScreen() {
             scheduleLabel={formatCompactTime(bookingForm.scheduleAt)}
             onTripTypeChange={(serviceType) => dispatch(updateBookingForm({ serviceType }))}
             onQuickSchedule={(kind) => dispatch(updateBookingForm({ scheduleAt: scheduleIso(kind) }))}
-            onOpenLocationSearch={() => navigation.navigate("CustomerServiceSetup")}
+            onOpenLocationSearch={() => handleOpenLocationSearch("drop")}
             onOpenDetails={() => navigation.navigate("CustomerServiceSetup")}
             onGetFare={handleGetFare}
           />
@@ -730,22 +791,45 @@ export function CustomerAssignedDriverScreen() {
   const activeBookingId = useAppSelector((state) => state.customer.activeBookingId);
   const bookings = useAppSelector((state) => state.customer.bookings);
   const booking = bookings.find((item) => item.booking_id === activeBookingId) ?? bookings[0];
+  const pickupOtp = booking?.pickup_otp ?? "4821";
+  const otpDigits = pickupOtp.split("");
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Driver" title="Driver assigned." subtitle="ETA and identity." visualVariant="customer" />
+      <ScreenHeader title="Driver on the way" subtitle="Share this code to start the trip." />
       <View style={styles.stackMd}>
+        <View style={styles.otpHero}>
+          <AppText variant="caption" style={styles.otpHeroEyebrow}>Pickup OTP</AppText>
+          <View style={styles.otpDigits}>
+            {otpDigits.map((digit, index) => (
+              <View key={`${digit}-${index}`} style={styles.otpDigitCell}>
+                <AppText variant="section" style={styles.otpDigitText}>{digit}</AppText>
+              </View>
+            ))}
+          </View>
+          <AppText variant="caption" style={styles.otpHeroHint}>
+            Tell your driver this code before the trip begins. Never share it in advance.
+          </AppText>
+        </View>
         <DriverTrustStrip />
+        <RydvrseMapPreview
+          pickupLabel={booking?.pickup_label ?? "Koramangala 4th Block"}
+          dropLabel={booking?.drop_label ?? "Whitefield Main Road"}
+          serviceType={toUiServiceType(booking?.service_type ?? "SCHEDULED_ONE_WAY")}
+          distanceLabel={booking?.driver?.distance_km ? `${booking.driver.distance_km} km away` : "3.2 km away"}
+          durationLabel={`${booking?.driver?.eta_minutes ?? 17} min`}
+        />
         <SectionCard>
           <View style={styles.stackSm}>
             <KeyValueRow label="Driver" value={booking?.driver?.name ?? "Arun K"} />
-            <KeyValueRow label="Rating" value={String(booking?.driver?.rating ?? 4.9)} />
+            <KeyValueRow label="Rating" value={`${booking?.driver?.rating ?? 4.9}`} />
+            <KeyValueRow label="Vehicle" value={booking?.driver?.vehicle_model ?? "Maruti Dzire - White"} />
+            <KeyValueRow label="Plate" value={booking?.driver?.vehicle_plate ?? "KA 05 AB 1234"} />
             <KeyValueRow label="Languages" value={booking?.driver?.language ?? "English, Kannada"} />
             <KeyValueRow label="ETA" value={`${booking?.driver?.eta_minutes ?? 17} mins`} />
             <KeyValueRow label="Verification" value={booking?.driver?.verification_badge ?? "Verified + Trained"} />
           </View>
         </SectionCard>
-        <MapPlaceholderCard title="Driver approach" subtitle="Driver location and ETA appear here." />
         <BottomActionBar primaryLabel="Driver arrived" secondaryLabel="Need help" onPrimaryPress={() => navigation.navigate("CustomerStartTrip")} onSecondaryPress={() => navigation.navigate("CustomerSupport")} primaryIcon="check" secondaryIcon="help" />
       </View>
     </Screen>
@@ -968,64 +1052,352 @@ export function CustomerBookingDetailScreen() {
   );
 }
 
+function FaqCard({ faq, onPress }: { faq: SupportFaq; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.faqCard, pressed && { opacity: 0.85 }]} accessibilityRole="button" accessibilityLabel={faq.question}>
+      <View style={styles.faqIconWrap}>
+        <AppIcon name="help" size={18} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+      </View>
+      <View style={styles.faqBody}>
+        <AppText variant="caption" style={styles.faqCategory}>{faq.category}</AppText>
+        <AppText variant="bodyStrong">{faq.question}</AppText>
+      </View>
+      <AppIcon name="arrowLeft" size={16} color={semantic.text.secondary} secondaryColor={semantic.text.secondary} />
+    </Pressable>
+  );
+}
+
 export function CustomerSupportScreen() {
   const navigation = useNavigation<any>();
-  const accessToken = useAppSelector((state) => state.session.accessToken);
-  const activeBookingId = useAppSelector((state) => state.customer.activeBookingId);
-  const [category, setCategory] = useState(supportCategories[0]);
-  const [description, setDescription] = useState("Driver delayed.");
-  const [success, setSuccess] = useState("");
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!accessToken) {
-      return;
-    }
-    await customerApi.createSupportTicket(accessToken, {
-      category,
-      description,
-      booking_id: activeBookingId
-    });
-    setSuccess("Ticket created.");
-  };
+  const trimmedQuery = query.trim();
+  const filtered = useMemo(() => searchFaqs(trimmedQuery), [trimmedQuery]);
+  const visibleFaqs = trimmedQuery.length > 0 ? filtered : expanded ? SUPPORT_FAQS : SUPPORT_FAQS.slice(0, 5);
+
+  const openChat = useCallback(
+    (faq?: SupportFaq) => {
+      navigation.navigate("CustomerSupportChat", {
+        faqId: faq?.id ?? "custom",
+        question: faq?.question ?? trimmedQuery,
+      });
+    },
+    [navigation, trimmedQuery],
+  );
 
   return (
     <Screen scrollable={false}>
-      <CompactHeader title="Help" subtitle="Short issue, quick action." onBack={() => navigation.goBack()} />
-      <View style={styles.stackSm}>
-        <TextField label="Category" value={category} onChangeText={setCategory} icon="help" />
-        <TextField label="Issue" value={description} onChangeText={setDescription} icon="document" multiline />
-        {success ? <StatusBanner tone="success" title="Submitted" message={success} /> : null}
-        <BottomActionBar primaryLabel="Submit ticket" onPrimaryPress={handleSubmit} primaryIcon="check" />
-      </View>
+      <ScreenHeader title="Help" subtitle="Find an answer or chat with support." />
+      <ScrollView
+        contentContainerStyle={styles.stackMd}
+        showsVerticalScrollIndicator={false}
+      >
+        <TextField
+          label="Search help"
+          placeholder="Try 'fare', 'driver', or 'cancel'"
+          value={query}
+          onChangeText={setQuery}
+          icon="help"
+        />
+
+        <View style={styles.supportQuickRow}>
+          <Pressable style={styles.supportQuickCard} onPress={() => openChat()} accessibilityRole="button" accessibilityLabel="Chat with an agent">
+            <View style={styles.supportQuickIcon}>
+              <AppIcon name="help" size={18} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
+            </View>
+            <AppText variant="bodyStrong">Chat with us</AppText>
+            <AppText variant="caption" style={styles.supportQuickHint}>Typical wait &lt; 2 min</AppText>
+          </Pressable>
+          <Pressable
+            style={styles.supportQuickCardAlt}
+            onPress={() => navigation.navigate("CustomerBookings")}
+            accessibilityRole="button"
+            accessibilityLabel="Open bookings"
+          >
+            <View style={styles.supportQuickIconAlt}>
+              <AppIcon name="calendar" size={18} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <AppText variant="bodyStrong">My trips</AppText>
+            <AppText variant="caption" style={styles.supportQuickHint}>Report an issue per trip</AppText>
+          </Pressable>
+        </View>
+
+        <View style={styles.sectionHeaderRow}>
+          <AppText variant="section">
+            {trimmedQuery ? `Matches for "${trimmedQuery}"` : "Popular questions"}
+          </AppText>
+          {trimmedQuery ? (
+            <AppText variant="caption" style={styles.sectionHeaderMeta}>
+              {filtered.length} result{filtered.length === 1 ? "" : "s"}
+            </AppText>
+          ) : null}
+        </View>
+
+        {visibleFaqs.length === 0 ? (
+          <EmptyState
+            title="No results"
+            message="Start a chat and we'll help you directly."
+            actionLabel="Chat with us"
+            onAction={() => openChat()}
+          />
+        ) : (
+          <View style={styles.stackSm}>
+            {visibleFaqs.map((faq) => (
+              <FaqCard key={faq.id} faq={faq} onPress={() => openChat(faq)} />
+            ))}
+          </View>
+        )}
+
+        {trimmedQuery.length === 0 && SUPPORT_FAQS.length > 5 ? (
+          <Pressable
+            onPress={() => setExpanded((prev) => !prev)}
+            style={styles.viewMoreButton}
+            accessibilityRole="button"
+            accessibilityLabel={expanded ? "Show fewer FAQs" : "View more FAQs"}
+          >
+            <AppText variant="bodyStrong" style={styles.viewMoreText}>
+              {expanded ? "Show fewer" : `View more (${SUPPORT_FAQS.length - 5})`}
+            </AppText>
+          </Pressable>
+        ) : null}
+
+        <SectionCard>
+          <View style={styles.supportContactRow}>
+            <View style={styles.supportContactIcon}>
+              <AppIcon name="shield" size={18} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.supportContactCopy}>
+              <AppText variant="bodyStrong">24x7 safety line</AppText>
+              <AppText variant="caption">Tap to connect to an on-call responder.</AppText>
+            </View>
+            <Pressable style={styles.supportContactCta} onPress={() => openChat()} accessibilityRole="button" accessibilityLabel="Connect to safety line">
+              <AppText variant="caption" style={styles.supportContactCtaText}>Open</AppText>
+            </Pressable>
+          </View>
+        </SectionCard>
+      </ScrollView>
     </Screen>
   );
 }
 
 export function CustomerProfileScreen() {
   const dispatch = useAppDispatch();
-  const accessToken = useAppSelector((state) => state.session.accessToken);
+  const navigation = useNavigation<any>();
+  const userName = useAppSelector((state) => state.session.userName);
+  const mobile = useAppSelector((state) => state.session.mobileNumber);
+  const bookings = useAppSelector((state) => state.customer.bookings);
+  const completedCount = bookings.filter((booking) => booking.status === "COMPLETED").length;
+  const upcomingCount = bookings.filter((booking) => booking.status !== "COMPLETED").length;
+  const fullName = userName ?? "Meera Singh";
+  const initials = fullName
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  return (
+    <Screen scrollable={false}>
+      <ScreenHeader
+        title="Profile"
+        rightSlot={
+          <Pressable
+            onPress={() => navigation.navigate("CustomerProfileEdit")}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+            style={styles.profileEditButton}
+            hitSlop={8}
+          >
+            <AppIcon name="document" size={16} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+          </Pressable>
+        }
+      />
+      <ScrollView contentContainerStyle={styles.profileScroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileHero}>
+          <View style={styles.profileAvatarOuter}>
+            <View style={styles.profileAvatarInner}>
+              <AppText variant="section" style={styles.profileAvatarText}>{initials || "M"}</AppText>
+            </View>
+            <Pressable
+              onPress={() => navigation.navigate("CustomerProfileEdit")}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile details"
+              style={styles.profilePencilBadge}
+            >
+              <AppIcon name="document" size={14} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
+            </Pressable>
+          </View>
+          <AppText variant="section" style={styles.profileName}>{fullName}</AppText>
+          <AppText variant="caption" style={styles.profileHandle}>{mobile ?? "+91 99999 99999"}</AppText>
+
+          <View style={styles.profileStatsRow}>
+            <View style={styles.profileStatCell}>
+              <AppText variant="section">{bookings.length}</AppText>
+              <AppText variant="caption">Trips</AppText>
+            </View>
+            <View style={styles.profileStatDivider} />
+            <View style={styles.profileStatCell}>
+              <AppText variant="section">{completedCount}</AppText>
+              <AppText variant="caption">Completed</AppText>
+            </View>
+            <View style={styles.profileStatDivider} />
+            <View style={styles.profileStatCell}>
+              <AppText variant="section">{upcomingCount}</AppText>
+              <AppText variant="caption">Upcoming</AppText>
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.profileEditCta}
+            onPress={() => navigation.navigate("CustomerProfileEdit")}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+          >
+            <AppIcon name="document" size={15} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+            <AppText variant="bodyStrong" style={styles.profileEditCtaText}>Edit profile</AppText>
+          </Pressable>
+        </View>
+
+        <SectionCard>
+          <View style={styles.stackSm}>
+            <KeyValueRow label="Mobile" value={mobile ?? "+91 99999 99999"} />
+            <KeyValueRow label="Email" value="meera@rydvrse.app" />
+            <KeyValueRow label="City" value="Bengaluru" />
+            <KeyValueRow label="Member since" value="Apr 2024" />
+          </View>
+        </SectionCard>
+
+        <View style={styles.profileActionList}>
+          <Pressable
+            style={styles.profileActionRow}
+            onPress={() => navigation.navigate("CustomerBookings")}
+            accessibilityRole="button"
+            accessibilityLabel="View past trips"
+          >
+            <View style={styles.profileActionIcon}>
+              <AppIcon name="calendar" size={17} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.profileActionCopy}>
+              <AppText variant="bodyStrong">Past trips</AppText>
+              <AppText variant="caption">Invoices, receipts, rebook</AppText>
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.profileActionRow}
+            onPress={() => navigation.navigate("CustomerSupport")}
+            accessibilityRole="button"
+            accessibilityLabel="Get help"
+          >
+            <View style={styles.profileActionIcon}>
+              <AppIcon name="help" size={17} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.profileActionCopy}>
+              <AppText variant="bodyStrong">Help & support</AppText>
+              <AppText variant="caption">FAQs, chat with an agent</AppText>
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.profileActionRow}
+            onPress={() => dispatch(logout())}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <View style={[styles.profileActionIcon, styles.profileActionIconDanger]}>
+              <AppIcon name="logout" size={17} color={colors.brand.strong} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.profileActionCopy}>
+              <AppText variant="bodyStrong">Log out</AppText>
+              <AppText variant="caption">End your session on this device</AppText>
+            </View>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+export function CustomerProfileEditScreen() {
+  const navigation = useNavigation<any>();
   const userName = useAppSelector((state) => state.session.userName);
   const mobile = useAppSelector((state) => state.session.mobileNumber);
   const [fullName, setFullName] = useState(userName ?? "Meera Singh");
   const [email, setEmail] = useState("meera@rydvrse.app");
   const [city, setCity] = useState("Bengaluru");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState("");
+  const [error, setError] = useState("");
 
-  const handleSave = async () => {
-    if (!accessToken || saving) {
+  const handleContinue = () => {
+    if (!fullName.trim() || !email.trim()) {
+      setError("Name and email are required.");
       return;
     }
+    setError("");
+    navigation.navigate("CustomerProfileOtp", {
+      full_name: fullName,
+      email,
+      city_name: city,
+    });
+  };
 
+  return (
+    <Screen scrollable={false}>
+      <ScreenHeader title="Edit profile" subtitle="We'll verify changes with an OTP." />
+      <ScrollView contentContainerStyle={styles.stackSm} showsVerticalScrollIndicator={false}>
+        <SectionCard>
+          <View style={styles.stackSm}>
+            <TextField label="Full name" value={fullName} onChangeText={setFullName} icon="profile" />
+            <TextField label="Email" value={email} onChangeText={setEmail} icon="document" />
+            <TextField label="City" value={city} onChangeText={setCity} icon="city" />
+            <KeyValueRow label="Mobile" value={mobile ?? "+91 99999 99999"} />
+            <AppText variant="caption">Mobile changes require a full re-verification. Contact support if you need to update it.</AppText>
+          </View>
+        </SectionCard>
+        {error ? <StatusBanner tone="warning" title="Incomplete" message={error} /> : null}
+        <BottomActionBar
+          primaryLabel="Verify with OTP"
+          secondaryLabel="Cancel"
+          onPrimaryPress={handleContinue}
+          onSecondaryPress={() => navigation.goBack()}
+          primaryIcon="check"
+          secondaryIcon="logout"
+        />
+      </ScrollView>
+    </Screen>
+  );
+}
+
+export function CustomerProfileOtpScreen() {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const accessToken = useAppSelector((state) => state.session.accessToken);
+  const mobile = useAppSelector((state) => state.session.mobileNumber);
+  const [otp, setOtp] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const payload = route.params ?? {};
+
+  const handleVerify = async () => {
+    if (otp.trim().length < 4) {
+      setError("Enter the 4-digit code we sent to your mobile.");
+      return;
+    }
+    if (!accessToken) {
+      setError("Session expired. Please log in again.");
+      return;
+    }
+    setError("");
+    setSaving(true);
     try {
-      setSaving(true);
-      setSaved("");
       await customerApi.updateProfile(accessToken, {
-        full_name: fullName,
-        email,
-        city_name: city,
+        full_name: payload.full_name,
+        email: payload.email,
+        city_name: payload.city_name,
       });
-      setSaved("Profile updated.");
+      setSaved(true);
+      setTimeout(() => {
+        navigation.navigate("CustomerTabs", { screen: "CustomerProfile" });
+      }, 800);
     } finally {
       setSaving(false);
     }
@@ -1033,16 +1405,25 @@ export function CustomerProfileScreen() {
 
   return (
     <Screen scrollable={false}>
-      <CompactHeader title="Profile" subtitle="Edit account details." />
-      <View style={styles.stackSm}>
-        <TextField label="Name" value={fullName} onChangeText={setFullName} icon="profile" />
-        <TextField label="Email" value={email} onChangeText={setEmail} icon="document" />
-        <TextField label="City" value={city} onChangeText={setCity} icon="city" />
+      <ScreenHeader title="Verify changes" subtitle={`We sent a 4-digit code to ${mobile ?? "your mobile"}.`} />
+      <View style={styles.stackMd}>
         <SectionCard>
-          <KeyValueRow label="Mobile" value={mobile ?? "+919999999999"} />
+          <View style={styles.stackSm}>
+            <TextField label="OTP" placeholder="Enter 4-digit code" value={otp} onChangeText={setOtp} icon="shield" keyboardType="numeric" />
+            <AppText variant="caption">For test mode the code is 4821. In production, the code arrives via SMS.</AppText>
+          </View>
         </SectionCard>
-        {saved ? <StatusBanner tone="success" title="Saved" message={saved} /> : null}
-        <BottomActionBar primaryLabel={saving ? "Saving..." : "Save"} secondaryLabel="Log out" onPrimaryPress={handleSave} onSecondaryPress={() => dispatch(logout())} primaryDisabled={saving || !fullName.trim()} primaryIcon="check" secondaryIcon="logout" />
+        {error ? <StatusBanner tone="warning" title="Not verified" message={error} /> : null}
+        {saved ? <StatusBanner tone="success" title="Profile updated" message="Your changes are live." /> : null}
+        <BottomActionBar
+          primaryLabel={saving ? "Verifying..." : "Verify and save"}
+          secondaryLabel="Back"
+          onPrimaryPress={handleVerify}
+          onSecondaryPress={() => navigation.goBack()}
+          primaryDisabled={saving}
+          primaryIcon="check"
+          secondaryIcon="logout"
+        />
       </View>
     </Screen>
   );
@@ -1202,5 +1583,286 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: spacing.md
-  }
+  },
+  // Support screen
+  supportQuickRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  supportQuickCard: {
+    flex: 1,
+    backgroundColor: colors.brand.primary,
+    borderRadius: 20,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  supportQuickCardAlt: {
+    flex: 1,
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+    borderRadius: 20,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  supportQuickIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.brand.strong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportQuickIconAlt: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportQuickHint: {
+    color: semantic.text.secondary,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sectionHeaderMeta: {
+    color: semantic.text.secondary,
+  },
+  faqCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 18,
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  faqIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  faqBody: {
+    flex: 1,
+    gap: 2,
+  },
+  faqCategory: {
+    color: colors.brand.strong,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  viewMoreButton: {
+    alignSelf: "center",
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+    backgroundColor: semantic.bg.surface,
+  },
+  viewMoreText: {
+    color: semantic.text.primary,
+  },
+  supportContactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  supportContactIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportContactCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  supportContactCta: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: colors.brand.primary,
+  },
+  supportContactCtaText: {
+    color: semantic.text.onBrand,
+  },
+  // Profile screen
+  profileScroll: {
+    gap: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  profileEditButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  profileHero: {
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    backgroundColor: semantic.bg.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  profileAvatarOuter: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    padding: 4,
+    backgroundColor: colors.brand.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  profileAvatarInner: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileAvatarText: {
+    fontSize: 32,
+    color: semantic.text.primary,
+  },
+  profilePencilBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.brand.strong,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: semantic.bg.surface,
+  },
+  profileName: {
+    fontSize: 20,
+    textAlign: "center",
+  },
+  profileHandle: {
+    color: semantic.text.secondary,
+    textAlign: "center",
+  },
+  profileStatsRow: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  profileStatCell: {
+    flex: 1,
+    alignItems: "center",
+    gap: 2,
+  },
+  profileStatDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: semantic.border.soft,
+  },
+  profileEditCta: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: colors.brand.soft,
+    borderWidth: 1,
+    borderColor: colors.brand.primary,
+  },
+  profileEditCtaText: {
+    color: semantic.text.primary,
+  },
+  profileActionList: {
+    gap: spacing.sm,
+  },
+  profileActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 18,
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  profileActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileActionIconDanger: {
+    backgroundColor: "#FEE2E2",
+  },
+  profileActionCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  // Pickup OTP hero
+  otpHero: {
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: 24,
+    backgroundColor: colors.brand.soft,
+    borderWidth: 1,
+    borderColor: colors.brand.primary,
+  },
+  otpHeroEyebrow: {
+    color: colors.brand.strong,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+  },
+  otpDigits: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  otpDigitCell: {
+    width: 56,
+    height: 64,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: colors.brand.primary,
+  },
+  otpDigitText: {
+    fontSize: 28,
+  },
+  otpHeroHint: {
+    color: semantic.text.secondary,
+    textAlign: "center",
+    paddingHorizontal: spacing.md,
+  },
 });

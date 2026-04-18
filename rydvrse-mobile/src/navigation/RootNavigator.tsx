@@ -2,10 +2,12 @@ import React from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppIcon } from "@/assets/icons/AppIcon";
 import { env } from "@/constants/env";
 import { RolePickerScreen } from "@/screens/shared/RolePickerScreen";
+import { CustomerLocationPickerScreen } from "@/screens/customer/CustomerLocationPickerScreen";
 import {
   CustomerActiveTripScreen,
   CustomerAssignedDriverScreen,
@@ -17,6 +19,8 @@ import {
   CustomerLoginScreen,
   CustomerOtpScreen,
   CustomerPaymentScreen,
+  CustomerProfileEditScreen,
+  CustomerProfileOtpScreen,
   CustomerProfileScreen,
   CustomerProfileSetupScreen,
   CustomerQuoteScreen,
@@ -25,6 +29,7 @@ import {
   CustomerStartTripScreen,
   CustomerSupportScreen
 } from "@/screens/customer/CustomerScreens";
+import { CustomerSupportChatScreen } from "@/screens/customer/CustomerSupportChatScreen";
 import {
   DriverActiveTripScreen,
   DriverAssignmentDetailScreen,
@@ -52,6 +57,8 @@ const CustomerTabs = createBottomTabNavigator();
 const DriverTabs = createBottomTabNavigator();
 
 function CustomerTabNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 8);
   return (
     <CustomerTabs.Navigator
       screenOptions={{
@@ -62,9 +69,9 @@ function CustomerTabNavigator() {
           backgroundColor: semantic.bg.surface,
           borderTopColor: semantic.border.soft,
           borderTopWidth: 1,
-          height: 64,
+          height: 64 + bottomInset,
           paddingTop: space[2],
-          paddingBottom: space[2],
+          paddingBottom: bottomInset,
           ...shadows.sm,
         },
         tabBarLabelStyle: {
@@ -86,6 +93,8 @@ function CustomerTabNavigator() {
 }
 
 function DriverTabNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 8);
   return (
     <DriverTabs.Navigator
       screenOptions={{
@@ -96,9 +105,9 @@ function DriverTabNavigator() {
           backgroundColor: semantic.bg.surface,
           borderTopColor: semantic.border.soft,
           borderTopWidth: 1,
-          height: 64,
+          height: 64 + bottomInset,
           paddingTop: space[2],
-          paddingBottom: space[2],
+          paddingBottom: bottomInset,
           ...shadows.sm,
         },
         tabBarLabelStyle: {
@@ -138,6 +147,11 @@ function CustomerNavigator() {
         <>
           <CustomerStack.Screen name="CustomerTabs" component={CustomerTabNavigator} />
           <CustomerStack.Screen name="CustomerServiceSetup" component={CustomerServiceSetupScreen} />
+          <CustomerStack.Screen
+            name="CustomerLocationPicker"
+            component={CustomerLocationPickerScreen}
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+          />
           <CustomerStack.Screen name="CustomerQuote" component={CustomerQuoteScreen} />
           <CustomerStack.Screen name="CustomerBookingReview" component={CustomerBookingReviewScreen} />
           <CustomerStack.Screen name="CustomerBookingStatus" component={CustomerBookingStatusScreen} />
@@ -147,6 +161,9 @@ function CustomerNavigator() {
           <CustomerStack.Screen name="CustomerPayment" component={CustomerPaymentScreen} />
           <CustomerStack.Screen name="CustomerRatingIssue" component={CustomerRatingIssueScreen} />
           <CustomerStack.Screen name="CustomerBookingDetail" component={CustomerBookingDetailScreen} />
+          <CustomerStack.Screen name="CustomerSupportChat" component={CustomerSupportChatScreen} />
+          <CustomerStack.Screen name="CustomerProfileEdit" component={CustomerProfileEditScreen} />
+          <CustomerStack.Screen name="CustomerProfileOtp" component={CustomerProfileOtpScreen} />
         </>
       )}
     </CustomerStack.Navigator>

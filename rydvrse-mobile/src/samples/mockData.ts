@@ -58,12 +58,16 @@ export const mockBookings: BookingPayload[] = [
     pickup_label: "Koramangala 4th Block",
     drop_label: "Whitefield Main Road",
     fare_amount_paise: 59059,
+    pickup_otp: "4821",
     driver: {
       name: "Arun K",
       rating: 4.9,
       language: "English, Kannada",
       eta_minutes: 17,
-      verification_badge: "Verified + Trained"
+      verification_badge: "Verified + Trained",
+      distance_km: 3.2,
+      vehicle_model: "Maruti Dzire - White",
+      vehicle_plate: "KA 05 AB 1234"
     }
   },
   {

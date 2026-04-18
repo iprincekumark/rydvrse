@@ -11,9 +11,11 @@ import { StatusBanner } from "@/components/common/StatusBanner";
 import { StatusChip } from "@/components/common/StatusChip";
 import { SectionCard } from "@/components/cards/SectionCard";
 import { MapPlaceholderCard } from "@/components/cards/MapPlaceholderCard";
+import { RydvrseMapPreview } from "@/components/maps/RydvrseMapPreview";
 import { TextField } from "@/components/forms/TextField";
 import { BottomActionBar } from "@/components/layout/BottomActionBar";
 import { HeaderBlock } from "@/components/layout/HeaderBlock";
+import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { Screen } from "@/components/layout/Screen";
 import { Skeleton } from "@/components/loaders/Skeleton";
 import { driverSupportCategories } from "@/constants/support";
@@ -421,9 +423,22 @@ export function DriverPickupScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Pickup approach" title="Arrival is logged, but the trip still waits for the customer's start confirmation." subtitle="This keeps billing fair and aligns the driver flow with the trust-first product rule." visualVariant="trust" />
+      <ScreenHeader title="Pickup navigation" subtitle="Navigate to pickup and mark arrival when ready." />
       <View style={styles.stackMd}>
-        <MapPlaceholderCard title="Pickup navigation" subtitle="Navigation context, ETA, and issue raising sit together here." />
+        <RydvrseMapPreview
+          pickupLabel="Customer pickup"
+          dropLabel="Drop destination"
+          serviceType="ONE_WAY_DROP"
+          distanceLabel="3.2 km"
+          durationLabel="8 min"
+        />
+        <SectionCard>
+          <View style={styles.stackSm}>
+            <KeyValueRow label="Customer" value="Meera Singh" />
+            <KeyValueRow label="Pickup" value="Koramangala 4th Block" />
+            <KeyValueRow label="ETA" value="8 min (3.2 km)" />
+          </View>
+        </SectionCard>
         <BottomActionBar primaryLabel={marking ? "Marking..." : "Mark arrived"} secondaryLabel="Pickup issue" onPrimaryPress={handleArrived} onSecondaryPress={() => navigation.navigate("DriverSupport")} primaryDisabled={marking} primaryIcon="check" secondaryIcon="alert" />
       </View>
     </Screen>
@@ -432,13 +447,53 @@ export function DriverPickupScreen() {
 
 export function DriverAwaitingStartScreen() {
   const navigation = useNavigation<any>();
+  const [otp, setOtp] = useState("");
+  const [error, setError] = useState("");
+  const expectedOtp = "4821";
+
+  const handleStart = () => {
+    const cleaned = otp.replace(/\s/g, "");
+    if (cleaned.length < 4) {
+      setError("Enter the 4-digit OTP the customer reads out.");
+      return;
+    }
+    if (cleaned !== expectedOtp) {
+      setError("OTP does not match. Double-check with the customer.");
+      return;
+    }
+    setError("");
+    navigation.navigate("DriverActiveTrip");
+  };
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Waiting state" title="The driver sees a simple hold state until the customer explicitly starts the trip." subtitle="This prevents accidental early activation and keeps pickup disputes auditable." visualVariant="status" />
+      <ScreenHeader title="Verify pickup OTP" subtitle="Ask the customer for the 4-digit code before starting." />
       <View style={styles.stackMd}>
-        <StatusBanner tone="info" title="Waiting for customer confirmation" message="If the customer is not reachable or the pickup is wrong, raise the issue instead of forcing trip start." />
-        <BottomActionBar primaryLabel="Simulate customer start" secondaryLabel="Pickup issue" onPrimaryPress={() => navigation.navigate("DriverActiveTrip")} onSecondaryPress={() => navigation.navigate("DriverSupport")} primaryIcon="check" secondaryIcon="alert" />
+        <SectionCard>
+          <View style={styles.stackSm}>
+            <AppText variant="bodyStrong">Ask the customer</AppText>
+            <AppText variant="caption">Say: "Could you share the 4-digit pickup OTP from your app?" Enter it here to start the trip.</AppText>
+            <TextField
+              label="Pickup OTP"
+              placeholder="4-digit code"
+              value={otp}
+              onChangeText={setOtp}
+              icon="shield"
+              keyboardType="numeric"
+            />
+            <AppText variant="caption">Test mode OTP: {expectedOtp}</AppText>
+          </View>
+        </SectionCard>
+        {error ? <StatusBanner tone="warning" title="Cannot start yet" message={error} /> : null}
+        <BottomActionBar
+          primaryLabel="Start trip"
+          secondaryLabel="Pickup issue"
+          onPrimaryPress={handleStart}
+          onSecondaryPress={() => navigation.navigate("DriverSupport")}
+          primaryDisabled={otp.trim().length < 4}
+          primaryIcon="check"
+          secondaryIcon="alert"
+        />
       </View>
     </Screen>
   );

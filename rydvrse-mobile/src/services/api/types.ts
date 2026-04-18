@@ -74,12 +74,16 @@ export type BookingPayload = {
   pickup_label: string;
   drop_label?: string;
   fare_amount_paise: number;
+  pickup_otp?: string;
   driver?: {
     name: string;
     rating: number;
     language: string;
     eta_minutes: number;
     verification_badge: string;
+    distance_km?: number;
+    vehicle_model?: string;
+    vehicle_plate?: string;
   };
 };
 
