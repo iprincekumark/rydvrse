@@ -131,11 +131,8 @@ The MVP supports these service types:
 
 | Service Type | Purpose | Commercial Model |
 |---|---|---|
-| `Scheduled Local` | errands, meetings, shopping, local commute | time-based with minimum duration |
 | `Scheduled One-Way Drop` | point A to point B in the customer's own car | base fare plus return allowance |
 | `Scheduled Round Trip` | waiting plus return or multi-stop service | time-based |
-| `Airport Pickup/Drop` | airport movement in customer's own car | simplified fixed or zone-based fare |
-| `Late-Night Safe Return` | trust-first night use case | supported base service plus night surcharge |
 
 ## What Makes Rydvrse Different
 
@@ -297,7 +294,16 @@ The following documents form the current source-of-truth set for the MVP:
 | [`Product_Requirements_Document.md`](./Product_Requirements_Document.md) | detailed business requirements, user stories, edge cases, and acceptance criteria | product, engineering, QA, ops |
 | [`Screen_Flow.md`](./Screen_Flow.md) | screen-by-screen flows for customer, driver, and admin | design, frontend, backend, QA |
 | [`Wireframes_and_UX_States.md`](./Wireframes_and_UX_States.md) | low-fidelity wireframes and UX states including edge scenarios | design, frontend, QA |
+| [`UI_UX_Improvement_Plan.md`](./UI_UX_Improvement_Plan.md) | production-grade mobile UX blueprint, compact layout principles, map and flow rules | product, design, frontend, backend |
+| [`UI_UX_Gap_Analysis.md`](./UI_UX_Gap_Analysis.md) | current-vs-target gap matrix and residual risks | product, frontend, QA |
+| [`UI_Implementation_Roadmap.md`](./UI_Implementation_Roadmap.md) | phased rollout and validation gates for UX delivery | engineering, product, QA |
+| [`React_Component_Architecture.md`](./React_Component_Architecture.md) | reusable component boundaries and frontend module contracts | frontend engineering |
+| [`System_Architecture_Frontend_Backend.md`](./System_Architecture_Frontend_Backend.md) | end-to-end runtime architecture linking mobile and backend | engineering leads, platform |
+| [`API_Integration_Mapping.md`](./API_Integration_Mapping.md) | API-to-UI contract mapping for customer and driver flows | frontend, backend, QA |
+| [`Feature_Wise_Explanation.md`](./Feature_Wise_Explanation.md) | feature-by-feature behavior summary for product and engineering alignment | product, engineering, ops |
 | [`Pricing_and_Payout_Design.md`](./Pricing_and_Payout_Design.md) | fare rules, payout rules, cancellation, refunds, and overrides | product, finance, backend, ops |
+| [`Pricing_Calculation_Documentation.md`](./Pricing_Calculation_Documentation.md) | Bengaluru fare formulas, examples, edge cases, payout and margin logic | product, finance, backend, ops |
+| [`Backend_Improvement_Suggestions.md`](./Backend_Improvement_Suggestions.md) | backend enhancements to strengthen UI reliability and map/pricing fidelity | backend, platform, product |
 | [`Database_Schema.md`](./Database_Schema.md) | detailed OLTP schema, state models, indexes, audit, and outbox tables | backend, platform, data |
 | [`API_Spec.md`](./API_Spec.md) | external API contract for customer, driver, admin, auth, and webhooks | backend, frontend, QA |
 | [`Low_Level_Design.md`](./Low_Level_Design.md) | Spring Boot module internals, service classes, repositories, async jobs, tracking and notifications | backend engineering |

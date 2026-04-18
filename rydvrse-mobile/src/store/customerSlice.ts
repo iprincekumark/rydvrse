@@ -7,6 +7,10 @@ type BookingForm = {
   serviceType: CustomerServiceType;
   pickup: string;
   drop: string;
+  pickupLatitude: number | null;
+  pickupLongitude: number | null;
+  dropLatitude: number | null;
+  dropLongitude: number | null;
   scheduleAt: string;
   durationLabel: string;
   distanceKm: string;
@@ -34,6 +38,10 @@ const initialState: CustomerState = {
     serviceType: "ONE_WAY_DROP",
     pickup: "Koramangala 4th Block",
     drop: "Whitefield Main Road",
+    pickupLatitude: 12.9352,
+    pickupLongitude: 77.6245,
+    dropLatitude: 12.9698,
+    dropLongitude: 77.75,
     scheduleAt: new Date(Date.now() + 1000 * 60 * 90).toISOString(),
     durationLabel: "105 mins",
     distanceKm: "31",

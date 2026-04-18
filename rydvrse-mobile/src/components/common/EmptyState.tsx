@@ -1,16 +1,20 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
-import { EmptyStateArtwork, EmptyStateArtworkVariant } from "@/assets/illustrations/EmptyStateArtwork";
+import { EmptyStateArtworkVariant } from "@/assets/illustrations/EmptyStateArtwork";
 import { AppText } from "@/components/common/AppText";
 import { PrimaryButton } from "@/components/common/PrimaryButton";
 import { radius, semantic, spacing } from "@/theme";
 
+/**
+ * Copy-first empty state. Illustrations are intentionally omitted — the
+ * visual weight sat off-brand and added no information. Keep the card
+ * quiet and let the copy + action do the work.
+ */
 export function EmptyState({
   title,
   message,
   actionLabel,
-  visualVariant = "booking",
   onAction,
 }: {
   title: string;
@@ -21,9 +25,6 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.card}>
-      <View style={styles.visualWrap}>
-        <EmptyStateArtwork variant={visualVariant} />
-      </View>
       <AppText variant="section">{title}</AppText>
       <AppText variant="body" style={styles.message}>{message}</AppText>
       {actionLabel ? <PrimaryButton label={actionLabel} onPress={onAction} /> : null}
@@ -40,11 +41,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
     alignItems: "flex-start",
-  },
-  visualWrap: {
-    alignSelf: "stretch",
-    alignItems: "center",
-    paddingBottom: spacing.xs,
   },
   message: {
     maxWidth: "96%",

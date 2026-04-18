@@ -80,8 +80,27 @@ export const customerApi = {
 
   async createBooking(token: string, body: Record<string, unknown>) {
     if (env.useMocks) {
+      const serviceType = typeof body["service_type"] === "string"
+        ? (body["service_type"] as string)
+        : mockBookings[0].service_type;
+      const pickupLabel = typeof body["pickup_label"] === "string"
+        ? (body["pickup_label"] as string)
+        : mockBookings[0].pickup_label;
+      const dropLabel = typeof body["drop_label"] === "string"
+        ? (body["drop_label"] as string)
+        : mockBookings[0].drop_label;
+      const scheduledAt = typeof body["scheduled_pickup_at"] === "string"
+        ? (body["scheduled_pickup_at"] as string)
+        : mockBookings[0].schedule_at;
+
       return apiClient.simulate<ApiEnvelope<BookingPayload>>(() => ({
-        data: mockBookings[0],
+        data: {
+          ...mockBookings[0],
+          service_type: serviceType,
+          pickup_label: pickupLabel,
+          drop_label: dropLabel,
+          schedule_at: scheduledAt,
+        },
         meta
       }));
     }

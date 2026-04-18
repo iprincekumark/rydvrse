@@ -18,6 +18,8 @@ type CalculateRouteEstimateInput = {
   pickupLabel: string;
   dropLabel: string;
   serviceType: CustomerServiceType;
+  pickupCoords?: Coordinate | null;
+  dropCoords?: Coordinate | null;
 };
 
 const KNOWN_BENGALURU_POINTS: Array<{ tokens: string[]; coordinate: Coordinate }> = [
@@ -43,14 +45,19 @@ export async function calculateRouteEstimate({
   pickupLabel,
   dropLabel,
   serviceType,
+  pickupCoords,
+  dropCoords,
 }: CalculateRouteEstimateInput): Promise<RouteEstimate> {
-  const knownRoute = getKnownRouteEstimate(pickupLabel, dropLabel, serviceType);
+  const knownRoute =
+    pickupCoords && dropCoords
+      ? null
+      : getKnownRouteEstimate(pickupLabel, dropLabel, serviceType);
   if (knownRoute) {
     return knownRoute;
   }
 
-  const pickup = await resolveCoordinate(pickupLabel);
-  const drop = await resolveCoordinate(dropLabel);
+  const pickup = pickupCoords ?? (await resolveCoordinate(pickupLabel));
+  const drop = dropCoords ?? (await resolveCoordinate(dropLabel));
   const olaEstimate = pickup && drop ? await fetchOlaMapsEstimate(pickup, drop, serviceType) : null;
 
   if (olaEstimate) {

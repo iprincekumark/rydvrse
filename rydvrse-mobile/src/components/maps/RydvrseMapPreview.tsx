@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppIcon } from "@/assets/icons/AppIcon";
 import { AppText } from "@/components/common/AppText";
 import { colors, radius, semantic, shadows, space } from "@/theme";
+
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
 
 type RydvrseMapPreviewProps = {
   pickupLabel: string;
@@ -14,22 +19,72 @@ type RydvrseMapPreviewProps = {
   onUseCurrentLocation?: () => void;
   onOpenSearch?: () => void;
   onRecenter?: () => void;
+  pickupCoords?: Coordinates;
+  dropCoords?: Coordinates;
+  currentCoords?: Coordinates;
+  interactive?: boolean;
+  /**
+   * When `minimal` is true the floating pickup/drop card and "Use current
+   * location" button are hidden so the map can be paired with an external
+   * booking sheet that owns those controls.
+   */
+  minimal?: boolean;
 };
 
-export function RydvrseMapPreview({
-  pickupLabel,
-  dropLabel,
-  serviceType = "ONE_WAY_DROP",
-  distanceLabel,
-  durationLabel,
-  onUseCurrentLocation,
-  onOpenSearch,
-  onRecenter,
-}: RydvrseMapPreviewProps) {
-  const isRoundTrip = serviceType === "ROUND_TRIP";
+function loadReactNativeMaps():
+  | {
+      MapView: any;
+      Marker: any;
+      Polyline: any;
+    }
+  | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("react-native-maps");
+    const MapView = mod?.default ?? mod?.MapView;
+    const Marker = mod?.Marker;
+    const Polyline = mod?.Polyline;
+    if (!MapView || !Marker) {
+      return null;
+    }
+    return { MapView, Marker, Polyline };
+  } catch {
+    return null;
+  }
+}
 
+function resolveRegion(points: Coordinates[]) {
+  if (!points.length) {
+    return {
+      latitude: 12.9716,
+      longitude: 77.5946,
+      latitudeDelta: 0.12,
+      longitudeDelta: 0.12,
+    };
+  }
+
+  const latitudes = points.map((point) => point.latitude);
+  const longitudes = points.map((point) => point.longitude);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLng = Math.min(...longitudes);
+  const maxLng = Math.max(...longitudes);
+
+  const latitudeDelta = Math.max(0.02, (maxLat - minLat) * 1.8);
+  const longitudeDelta = Math.max(0.02, (maxLng - minLng) * 1.8);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta,
+    longitudeDelta,
+  };
+}
+
+function StaticMapFallback({ serviceType }: { serviceType: string }) {
+  const isRoundTrip = serviceType === "ROUND_TRIP";
   return (
-    <View style={styles.mapShell} accessibilityLabel="Rydvrse map preview with pickup and drop route">
+    <>
       <View style={styles.gridLayer}>
         {Array.from({ length: 8 }).map((_, index) => (
           <View key={`h-${index}`} style={[styles.gridLineHorizontal, { top: `${index * 14}%` }]} />
@@ -44,6 +99,79 @@ export function RydvrseMapPreview({
       <View style={styles.routeLine} />
       {isRoundTrip ? <View style={styles.returnRouteLine} /> : null}
       {isRoundTrip ? <View style={styles.returnRouteDash} /> : null}
+      <View style={[styles.marker, styles.pickupMarker]}>
+        <View style={styles.markerDot} />
+      </View>
+      <View style={[styles.marker, styles.dropMarker]}>
+        <AppIcon name="pin" size={16} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
+      </View>
+    </>
+  );
+}
+
+export function RydvrseMapPreview({
+  pickupLabel,
+  dropLabel,
+  serviceType = "ONE_WAY_DROP",
+  distanceLabel,
+  durationLabel,
+  onUseCurrentLocation,
+  onOpenSearch,
+  onRecenter,
+  pickupCoords,
+  dropCoords,
+  currentCoords,
+  interactive = false,
+  minimal = false,
+}: RydvrseMapPreviewProps) {
+  const maps = useMemo(() => (interactive ? loadReactNativeMaps() : null), [interactive]);
+  const routePoints = useMemo(
+    () => [pickupCoords, dropCoords].filter(Boolean) as Coordinates[],
+    [dropCoords, pickupCoords],
+  );
+  const regionPoints = useMemo(
+    () => [pickupCoords, dropCoords, currentCoords].filter(Boolean) as Coordinates[],
+    [currentCoords, dropCoords, pickupCoords],
+  );
+  const initialRegion = useMemo(() => resolveRegion(regionPoints), [regionPoints]);
+
+  const mapKey = useMemo(
+    () =>
+      `${initialRegion.latitude.toFixed(4)}:${initialRegion.longitude.toFixed(4)}:${initialRegion.latitudeDelta.toFixed(4)}:${initialRegion.longitudeDelta.toFixed(4)}`,
+    [initialRegion.latitude, initialRegion.latitudeDelta, initialRegion.longitude, initialRegion.longitudeDelta],
+  );
+
+  const MapView = maps?.MapView;
+  const Marker = maps?.Marker;
+  const Polyline = maps?.Polyline;
+
+  return (
+    <View style={styles.mapShell} accessibilityLabel="Rydvrse live map with pickup and drop route">
+      {MapView && Marker ? (
+        <MapView
+          key={mapKey}
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={initialRegion}
+          showsUserLocation
+          showsCompass={false}
+          showsMyLocationButton={false}
+          showsScale={false}
+          loadingEnabled
+          rotateEnabled={false}
+        >
+          {pickupCoords ? (
+            <Marker coordinate={pickupCoords} title="Pickup" pinColor={semantic.text.primary} />
+          ) : null}
+          {dropCoords ? (
+            <Marker coordinate={dropCoords} title="Drop" pinColor={colors.brand.strong} />
+          ) : null}
+          {Polyline && routePoints.length >= 2 ? (
+            <Polyline coordinates={routePoints} strokeWidth={4} strokeColor={colors.brand.strong} />
+          ) : null}
+        </MapView>
+      ) : (
+        <StaticMapFallback serviceType={serviceType} />
+      )}
 
       {durationLabel || distanceLabel ? (
         <View style={styles.etaChip}>
@@ -55,13 +183,6 @@ export function RydvrseMapPreview({
           </AppText>
         </View>
       ) : null}
-
-      <View style={[styles.marker, styles.pickupMarker]}>
-        <View style={styles.markerDot} />
-      </View>
-      <View style={[styles.marker, styles.dropMarker]}>
-        <AppIcon name="pin" size={16} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
-      </View>
 
       <View style={styles.topControls}>
         <Pressable style={styles.mapPill} onPress={onOpenSearch} accessibilityRole="button" accessibilityLabel="Search pickup or drop location">
@@ -75,28 +196,32 @@ export function RydvrseMapPreview({
         </Pressable>
       </View>
 
-      <View style={styles.locationCard}>
-        <View style={styles.locationRow}>
-          <View style={[styles.locationDot, styles.pickupDot]} />
-          <View style={styles.locationText}>
-            <AppText variant="caption">Pickup</AppText>
-            <AppText variant="bodyStrong" numberOfLines={1}>{pickupLabel}</AppText>
+      {!minimal ? (
+        <View style={styles.locationCard}>
+          <View style={styles.locationRow}>
+            <View style={[styles.locationDot, styles.pickupDot]} />
+            <View style={styles.locationText}>
+              <AppText variant="caption">Pickup</AppText>
+              <AppText variant="bodyStrong" numberOfLines={1}>{pickupLabel}</AppText>
+            </View>
+          </View>
+          <View style={styles.locationDivider} />
+          <View style={styles.locationRow}>
+            <View style={[styles.locationDot, styles.dropDot]} />
+            <View style={styles.locationText}>
+              <AppText variant="caption">Drop</AppText>
+              <AppText variant="bodyStrong" numberOfLines={1}>{dropLabel}</AppText>
+            </View>
           </View>
         </View>
-        <View style={styles.locationDivider} />
-        <View style={styles.locationRow}>
-          <View style={[styles.locationDot, styles.dropDot]} />
-          <View style={styles.locationText}>
-            <AppText variant="caption">Drop</AppText>
-            <AppText variant="bodyStrong" numberOfLines={1}>{dropLabel}</AppText>
-          </View>
-        </View>
-      </View>
+      ) : null}
 
-      <Pressable style={styles.currentLocationButton} onPress={onUseCurrentLocation} accessibilityRole="button" accessibilityLabel="Use current location">
-        <AppIcon name="pin" size={17} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
-        <AppText variant="caption" style={styles.currentLocationText}>Use current location</AppText>
-      </Pressable>
+      {!minimal && onUseCurrentLocation ? (
+        <Pressable style={styles.currentLocationButton} onPress={onUseCurrentLocation} accessibilityRole="button" accessibilityLabel="Use current location">
+          <AppIcon name="pin" size={17} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
+          <AppText variant="caption" style={styles.currentLocationText}>Use current location</AppText>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -251,11 +376,12 @@ const styles = StyleSheet.create({
   },
   mapPillText: {
     color: semantic.text.primary,
+    flexShrink: 1,
   },
   iconButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: radius.full,
     backgroundColor: "rgba(255,255,255,0.92)",
     alignItems: "center",
     justifyContent: "center",
@@ -265,11 +391,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: space[4],
     right: space[4],
-    bottom: 58,
+    bottom: 80,
+    borderRadius: radius.lg,
     backgroundColor: "rgba(255,255,255,0.94)",
-    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
     padding: space[3],
-    gap: space[1],
+    gap: space[2],
     ...shadows.md,
   },
   locationRow: {
@@ -290,24 +418,25 @@ const styles = StyleSheet.create({
   },
   locationText: {
     flex: 1,
+    gap: 2,
   },
   locationDivider: {
     height: 1,
-    marginLeft: 24,
     backgroundColor: semantic.border.soft,
+    marginLeft: 15,
   },
   currentLocationButton: {
     position: "absolute",
     right: space[4],
-    bottom: space[4],
-    minHeight: 42,
+    bottom: 24,
+    minHeight: 34,
     borderRadius: radius.full,
     backgroundColor: colors.brand.primary,
     flexDirection: "row",
     alignItems: "center",
     gap: space[2],
-    paddingHorizontal: space[4],
-    ...shadows.md,
+    paddingHorizontal: space[3],
+    ...shadows.sm,
   },
   currentLocationText: {
     color: semantic.text.onBrand,

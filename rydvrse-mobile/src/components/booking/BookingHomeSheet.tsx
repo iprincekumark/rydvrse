@@ -12,10 +12,12 @@ type BookingHomeSheetProps = {
   pickup: string;
   drop: string;
   scheduleLabel: string;
+  distanceLabel?: string;
+  durationLabel?: string;
   onTripTypeChange: (serviceType: CustomerServiceType) => void;
   onQuickSchedule: (kind: "now" | "thirty" | "hour") => void;
-  onOpenLocationSearch: () => void;
-  onOpenDetails: () => void;
+  onOpenPickup: () => void;
+  onOpenDrop: () => void;
   onGetFare: () => void;
 };
 
@@ -24,10 +26,12 @@ export function BookingHomeSheet({
   pickup,
   drop,
   scheduleLabel,
+  distanceLabel,
+  durationLabel,
   onTripTypeChange,
   onQuickSchedule,
-  onOpenLocationSearch,
-  onOpenDetails,
+  onOpenPickup,
+  onOpenDrop,
   onGetFare,
 }: BookingHomeSheetProps) {
   const selectedOneWay = serviceType !== "ROUND_TRIP";
@@ -35,16 +39,6 @@ export function BookingHomeSheet({
   return (
     <View style={styles.sheet}>
       <View style={styles.handle} />
-      <View style={styles.headerRow}>
-        <View>
-          <AppText variant="overline" style={styles.eyebrow}>Rydvrse</AppText>
-          <AppText variant="title" style={styles.title}>Book Driver</AppText>
-        </View>
-        <View style={styles.cityBadge}>
-          <AppIcon name="city" size={15} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
-          <AppText variant="caption" style={styles.cityBadgeText}>BLR</AppText>
-        </View>
-      </View>
 
       <View style={styles.tripSegment} accessibilityRole="tablist">
         <Pressable
@@ -69,23 +63,35 @@ export function BookingHomeSheet({
         </Pressable>
       </View>
 
-      <Pressable style={styles.locationBox} onPress={onOpenLocationSearch} accessibilityRole="button" accessibilityLabel="Edit pickup and drop locations">
-        <View style={styles.locationLine}>
+      <View style={styles.locationBox}>
+        <Pressable
+          style={styles.locationLine}
+          onPress={onOpenPickup}
+          accessibilityRole="button"
+          accessibilityLabel="Edit pickup location"
+        >
           <View style={[styles.dot, styles.pickupDot]} />
           <View style={styles.locationCopy}>
             <AppText variant="caption">Pickup</AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>{pickup}</AppText>
           </View>
-        </View>
+          <AppIcon name="arrowRight" size={14} color={semantic.text.primary} secondaryColor={semantic.text.primary} />
+        </Pressable>
         <View style={styles.verticalLine} />
-        <View style={styles.locationLine}>
+        <Pressable
+          style={styles.locationLine}
+          onPress={onOpenDrop}
+          accessibilityRole="button"
+          accessibilityLabel="Edit drop location"
+        >
           <View style={[styles.dot, styles.dropDot]} />
           <View style={styles.locationCopy}>
             <AppText variant="caption">Drop</AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>{drop}</AppText>
           </View>
-        </View>
-      </Pressable>
+          <AppIcon name="arrowRight" size={14} color={semantic.text.primary} secondaryColor={semantic.text.primary} />
+        </Pressable>
+      </View>
 
       <View style={styles.quickScheduleRow}>
         {[
@@ -105,22 +111,28 @@ export function BookingHomeSheet({
         ))}
       </View>
 
-      <View style={styles.metricsRow}>
-        <View style={styles.metric}>
+      <View style={styles.metricRow}>
+        <View style={[styles.metric, styles.metricHalf]}>
           <AppIcon name="calendar" size={15} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
           <View style={styles.metricCopy}>
             <AppText variant="caption">Pickup time</AppText>
             <AppText variant="bodyStrong">{scheduleLabel}</AppText>
           </View>
         </View>
+        <View style={[styles.metric, styles.metricHalf]}>
+          <AppIcon name="route" size={15} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+          <View style={styles.metricCopy}>
+            <AppText variant="caption">Route</AppText>
+            <AppText variant="bodyStrong" numberOfLines={1}>
+              {distanceLabel ?? "--"}
+              {distanceLabel && durationLabel ? " / " : ""}
+              {durationLabel ?? "--"}
+            </AppText>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.actionRow}>
-        <Pressable style={styles.detailsButton} onPress={onOpenDetails} accessibilityRole="button" accessibilityLabel="Edit full booking details">
-          <AppText variant="bodyStrong">Details</AppText>
-        </Pressable>
-        <PrimaryButton label="Get fare" onPress={onGetFare} trailingIcon="arrowRight" style={styles.fareButton} />
-      </View>
+      <PrimaryButton label="Get fare" onPress={onGetFare} trailingIcon="arrowRight" />
     </View>
   );
 }
@@ -144,33 +156,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: semantic.border.strong,
     alignSelf: "center",
-    marginBottom: 0,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: space[3],
-  },
-  eyebrow: {
-    color: colors.brand.strong,
-  },
-  title: {
-    color: semantic.text.primary,
-    fontSize: 21,
-    lineHeight: 26,
-  },
-  cityBadge: {
-    minHeight: 36,
-    borderRadius: radius.full,
-    backgroundColor: semantic.text.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space[1],
-    paddingHorizontal: space[3],
-  },
-  cityBadgeText: {
-    color: semantic.text.inverted,
+    marginBottom: space[1],
   },
   tripSegment: {
     flexDirection: "row",
@@ -181,7 +167,7 @@ const styles = StyleSheet.create({
   },
   segmentButton: {
     flex: 1,
-    minHeight: 34,
+    minHeight: 36,
     borderRadius: radius.full,
     flexDirection: "row",
     alignItems: "center",
@@ -204,6 +190,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space[3],
+    paddingVertical: space[1],
   },
   dot: {
     width: 12,
@@ -230,6 +217,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: space[2],
   },
+  metricRow: {
+    flexDirection: "row",
+    gap: space[2],
+  },
   scheduleChip: {
     minHeight: 28,
     borderRadius: radius.full,
@@ -241,11 +232,7 @@ const styles = StyleSheet.create({
   scheduleChipText: {
     color: semantic.text.primary,
   },
-  metricsRow: {
-    flexDirection: "row",
-  },
   metric: {
-    flex: 1,
     minHeight: 46,
     borderRadius: radius.md,
     backgroundColor: semantic.bg.surface,
@@ -256,24 +243,10 @@ const styles = StyleSheet.create({
     gap: space[2],
     padding: space[2],
   },
-  metricCopy: {
+  metricHalf: {
     flex: 1,
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: space[2],
-  },
-  detailsButton: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    paddingHorizontal: space[4],
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: semantic.bg.surface,
-    borderWidth: 1,
-    borderColor: semantic.border.soft,
-  },
-  fareButton: {
+  metricCopy: {
     flex: 1,
   },
 });

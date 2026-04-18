@@ -17,16 +17,16 @@ import { ChoiceCard } from "@/components/common/ChoiceCard";
 import { StatusBanner } from "@/components/common/StatusBanner";
 import { StatusChip } from "@/components/common/StatusChip";
 import { KeyValueRow } from "@/components/common/KeyValueRow";
-import { MapPlaceholderCard } from "@/components/cards/MapPlaceholderCard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Skeleton } from "@/components/loaders/Skeleton";
 import { FareBreakdown } from "@/components/patterns/FareBreakdown";
 import { RydvrseMapPreview } from "@/components/maps/RydvrseMapPreview";
 import { SUPPORT_FAQS, SupportFaq, searchFaqs } from "@/constants/supportFaq";
-import { CustomerServiceType, serviceTypeOptions } from "@/constants/serviceTypes";
+import { CustomerServiceType } from "@/constants/serviceTypes";
 import { authApi } from "@/services/api/auth";
 import { customerApi } from "@/services/api/customer";
 import { calculateRouteEstimate } from "@/services/maps/routeEstimator";
+import { inferBengaluruCoords } from "@/services/maps/bengaluruGeo";
 import { reverseGeocode } from "@/services/maps/olaPlacesService";
 import { useCurrentLocation } from "@/hooks/useCurrentLocation";
 import { useAppDispatch, useAppSelector } from "@/store";
@@ -34,11 +34,6 @@ import { markProfileComplete, setActiveBooking, setBookings, setQuote, updateBoo
 import { hydrateSession, logout } from "@/store/sessionSlice";
 import { colors, semantic, spacing } from "@/theme";
 import { formatCompactTime, formatCurrency } from "@/utils/format";
-
-const serviceEyebrowMap: Record<string, string> = {
-  ONE_WAY_DROP: "Direct",
-  ROUND_TRIP: "Return"
-};
 
 const BENGALURU_CITY_ID = "20000000-0000-0000-0000-000000000001";
 
@@ -79,6 +74,10 @@ async function refreshRouteEstimate(
   bookingForm: {
     pickup: string;
     drop: string;
+    pickupLatitude: number | null;
+    pickupLongitude: number | null;
+    dropLatitude: number | null;
+    dropLongitude: number | null;
     serviceType: CustomerServiceType;
   },
 ) {
@@ -86,6 +85,20 @@ async function refreshRouteEstimate(
     pickupLabel: bookingForm.pickup,
     dropLabel: bookingForm.drop,
     serviceType: bookingForm.serviceType,
+    pickupCoords:
+      bookingForm.pickupLatitude != null && bookingForm.pickupLongitude != null
+        ? {
+            latitude: bookingForm.pickupLatitude,
+            longitude: bookingForm.pickupLongitude,
+          }
+        : null,
+    dropCoords:
+      bookingForm.dropLatitude != null && bookingForm.dropLongitude != null
+        ? {
+            latitude: bookingForm.dropLatitude,
+            longitude: bookingForm.dropLongitude,
+          }
+        : null,
   });
 
   dispatch(
@@ -122,30 +135,6 @@ function SectionTitle({ label }: { label: string }) {
     <AppText variant="section" style={{ marginBottom: spacing.sm }}>
       {label}
     </AppText>
-  );
-}
-
-function CompactHeader({
-  title,
-  subtitle,
-  onBack,
-}: {
-  title: string;
-  subtitle?: string;
-  onBack?: () => void;
-}) {
-  return (
-    <View style={styles.compactHeader}>
-      {onBack ? (
-        <Pressable onPress={onBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-          <AppIcon name="arrowLeft" size={20} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
-        </Pressable>
-      ) : null}
-      <View style={styles.compactHeaderCopy}>
-        <AppText variant="section">{title}</AppText>
-        {subtitle ? <AppText variant="caption">{subtitle}</AppText> : null}
-      </View>
-    </View>
   );
 }
 
@@ -396,8 +385,12 @@ export function CustomerHomeScreen() {
   const mapHeight = isWide
     ? Math.max(520, height - 120)
     : Math.max(280, Math.min(360, height * 0.42));
-  const { coords, usingFallback, refresh } = useCurrentLocation({ autoRequest: true });
+  const { coords, usingFallback, refresh, status } = useCurrentLocation({
+    autoRequest: true,
+    liveUpdates: true,
+  });
   const [resolvingPickup, setResolvingPickup] = useState(false);
+  const [pickupSeeded, setPickupSeeded] = useState(false);
 
   const distanceLabel = useMemo(() => {
     const km = parsePositiveInt(bookingForm.distanceKm, 0);
@@ -416,6 +409,20 @@ export function CustomerHomeScreen() {
         pickupLabel: bookingForm.pickup,
         dropLabel: bookingForm.drop,
         serviceType: bookingForm.serviceType,
+        pickupCoords:
+          bookingForm.pickupLatitude != null && bookingForm.pickupLongitude != null
+            ? {
+                latitude: bookingForm.pickupLatitude,
+                longitude: bookingForm.pickupLongitude,
+              }
+            : null,
+        dropCoords:
+          bookingForm.dropLatitude != null && bookingForm.dropLongitude != null
+            ? {
+                latitude: bookingForm.dropLatitude,
+                longitude: bookingForm.dropLongitude,
+              }
+            : null,
       });
 
       if (!active) {
@@ -438,7 +445,44 @@ export function CustomerHomeScreen() {
     return () => {
       active = false;
     };
-  }, [bookingForm.drop, bookingForm.pickup, bookingForm.serviceType, dispatch]);
+  }, [
+    bookingForm.drop,
+    bookingForm.dropLatitude,
+    bookingForm.dropLongitude,
+    bookingForm.pickup,
+    bookingForm.pickupLatitude,
+    bookingForm.pickupLongitude,
+    bookingForm.serviceType,
+    dispatch,
+  ]);
+
+  useEffect(() => {
+    let active = true;
+
+    const hydratePickupFromGps = async () => {
+      if (pickupSeeded || status !== "granted" || usingFallback) {
+        return;
+      }
+      const reverse = await reverseGeocode(coords);
+      if (!active) {
+        return;
+      }
+      dispatch(
+        updateBookingForm({
+          pickup: reverse.label,
+          pickupLatitude: reverse.latitude ?? coords.latitude,
+          pickupLongitude: reverse.longitude ?? coords.longitude,
+        }),
+      );
+      setPickupSeeded(true);
+    };
+
+    void hydratePickupFromGps();
+
+    return () => {
+      active = false;
+    };
+  }, [coords, dispatch, pickupSeeded, status, usingFallback]);
 
   const handleUseCurrentLocation = useCallback(async () => {
     if (resolvingPickup) {
@@ -450,7 +494,13 @@ export function CustomerHomeScreen() {
         await refresh();
       }
       const reverse = await reverseGeocode(coords);
-      dispatch(updateBookingForm({ pickup: reverse.label }));
+      dispatch(
+        updateBookingForm({
+          pickup: reverse.label,
+          pickupLatitude: reverse.latitude ?? coords.latitude,
+          pickupLongitude: reverse.longitude ?? coords.longitude,
+        }),
+      );
     } finally {
       setResolvingPickup(false);
     }
@@ -468,7 +518,7 @@ export function CustomerHomeScreen() {
 
   const handleGetFare = useCallback(async () => {
     await refreshRouteEstimate(dispatch, bookingForm);
-    navigation.navigate("CustomerQuote");
+    navigation.navigate("CustomerServiceSetup");
   }, [bookingForm, dispatch, navigation]);
 
   return (
@@ -487,11 +537,29 @@ export function CustomerHomeScreen() {
             serviceType={bookingForm.serviceType}
             distanceLabel={distanceLabel}
             durationLabel={durationLabel}
-            onUseCurrentLocation={handleUseCurrentLocation}
+            pickupCoords={
+              bookingForm.pickupLatitude != null && bookingForm.pickupLongitude != null
+                ? {
+                    latitude: bookingForm.pickupLatitude,
+                    longitude: bookingForm.pickupLongitude,
+                  }
+                : undefined
+            }
+            dropCoords={
+              bookingForm.dropLatitude != null && bookingForm.dropLongitude != null
+                ? {
+                    latitude: bookingForm.dropLatitude,
+                    longitude: bookingForm.dropLongitude,
+                  }
+                : undefined
+            }
+            currentCoords={coords}
             onOpenSearch={() => handleOpenLocationSearch("pickup")}
             onRecenter={() => {
-              void refresh();
+              void handleUseCurrentLocation();
             }}
+            interactive
+            minimal
           />
         </View>
 
@@ -509,8 +577,10 @@ export function CustomerHomeScreen() {
             scheduleLabel={formatCompactTime(bookingForm.scheduleAt)}
             onTripTypeChange={(serviceType) => dispatch(updateBookingForm({ serviceType }))}
             onQuickSchedule={(kind) => dispatch(updateBookingForm({ scheduleAt: scheduleIso(kind) }))}
-            onOpenLocationSearch={() => handleOpenLocationSearch("drop")}
-            onOpenDetails={() => navigation.navigate("CustomerServiceSetup")}
+            onOpenPickup={() => handleOpenLocationSearch("pickup")}
+            onOpenDrop={() => handleOpenLocationSearch("drop")}
+            distanceLabel={distanceLabel}
+            durationLabel={durationLabel}
             onGetFare={handleGetFare}
           />
         </View>
@@ -519,82 +589,120 @@ export function CustomerHomeScreen() {
   );
 }
 
+const TRANSMISSION_OPTIONS: Array<{ id: string; title: string; subtitle: string }> = [
+  { id: "AUTOMATIC", title: "Automatic", subtitle: "Self-shifting gearbox" },
+  { id: "MANUAL", title: "Manual", subtitle: "Stick shift" },
+];
+
+const CAR_TYPE_OPTIONS: Array<{ id: string; title: string; subtitle: string }> = [
+  { id: "HATCHBACK", title: "Hatchback", subtitle: "Compact city car" },
+  { id: "SEDAN", title: "Sedan", subtitle: "Comfortable 4-door" },
+  { id: "SUV", title: "SUV", subtitle: "Spacious, higher stance" },
+];
+
 export function CustomerServiceSetupScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const bookingForm = useAppSelector((state) => state.customer.bookingForm);
   const [estimating, setEstimating] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-
-    const estimateRoute = async () => {
-      const estimate = await calculateRouteEstimate({
-        pickupLabel: bookingForm.pickup,
-        dropLabel: bookingForm.drop,
-        serviceType: bookingForm.serviceType,
-      });
-
-      if (!active) {
-        return;
-      }
-
-      dispatch(
-        updateBookingForm({
-          distanceKm: String(estimate.roundedDistanceKm),
-          predictedDriveMinutes: String(estimate.predictedDriveMinutes),
-          driverPickupDistanceKm: String(estimate.driverPickupDistanceKm),
-          driverPickupEtaMinutes: String(estimate.driverPickupEtaMinutes),
-          durationLabel: `${estimate.predictedDriveMinutes} mins`,
-        }),
-      );
-    };
-
-    void estimateRoute();
-
-    return () => {
-      active = false;
-    };
-  }, [bookingForm.drop, bookingForm.pickup, bookingForm.serviceType, dispatch]);
-
-  const handleGetFare = async () => {
+  const handleContinue = async () => {
     setEstimating(true);
     await refreshRouteEstimate(dispatch, bookingForm);
     setEstimating(false);
     navigation.navigate("CustomerQuote");
   };
 
+  const tripTypeLabel =
+    bookingForm.serviceType === "ROUND_TRIP" ? "Round trip" : "One-way drop";
+
   return (
-    <Screen backgroundColor="rgba(16, 19, 18, 0.10)">
-      <View style={styles.detailsSheet}>
-        <CompactHeader title="Trip details" subtitle="Add trip info." onBack={() => navigation.goBack()} />
-        <View style={styles.tripTypeGrid}>
-          {serviceTypeOptions.map((option) => (
-            <ChoiceCard
-              key={option.id}
-              title={option.title}
-              subtitle={option.subtitle}
-              eyebrow={serviceEyebrowMap[option.id]}
-              leading={<ServiceIcon serviceType={option.id} />}
-              selected={bookingForm.serviceType === option.id}
-              onPress={() => dispatch(updateBookingForm({ serviceType: option.id }))}
-            />
-          ))}
-        </View>
-        <TextField label="Pickup location" value={bookingForm.pickup} onChangeText={(value) => dispatch(updateBookingForm({ pickup: value }))} icon="pin" />
-        <TextField label="Drop location" value={bookingForm.drop} onChangeText={(value) => dispatch(updateBookingForm({ drop: value }))} icon="route" />
-        <TextField label="Scheduled time" value={bookingForm.scheduleAt} onChangeText={(value) => dispatch(updateBookingForm({ scheduleAt: value }))} icon="calendar" />
+    <Screen>
+      <ScreenHeader
+        title="Car details"
+        subtitle={`${tripTypeLabel} · ${bookingForm.pickup} → ${bookingForm.drop}`}
+        onBack={() => navigation.goBack()}
+      />
+
+      <View style={styles.stackMd}>
         <SectionCard>
           <View style={styles.stackSm}>
-            <SectionTitle label="Car details" />
-            <TextField label="Transmission" value={bookingForm.transmissionType} onChangeText={(value) => dispatch(updateBookingForm({ transmissionType: value.toUpperCase() }))} icon="car" />
-            <TextField label="Car type" value={bookingForm.carType} onChangeText={(value) => dispatch(updateBookingForm({ carType: value.toUpperCase() }))} icon="car" />
-            <TextField label="Brand and model" value={bookingForm.carBrandModel} onChangeText={(value) => dispatch(updateBookingForm({ carBrandModel: value }))} icon="document" />
-            <TextField label="Car number" value={bookingForm.carNumber} onChangeText={(value) => dispatch(updateBookingForm({ carNumber: value.toUpperCase() }))} icon="ticket" />
+            <SectionTitle label="Transmission" />
+            <View style={styles.optionGrid}>
+              {TRANSMISSION_OPTIONS.map((option) => (
+                <ChoiceCard
+                  key={option.id}
+                  title={option.title}
+                  subtitle={option.subtitle}
+                  selected={bookingForm.transmissionType === option.id}
+                  onPress={() => dispatch(updateBookingForm({ transmissionType: option.id }))}
+                />
+              ))}
+            </View>
           </View>
         </SectionCard>
-        <TextField label="Notes" value={bookingForm.instructions} onChangeText={(value) => dispatch(updateBookingForm({ instructions: value }))} icon="document" multiline />
-        <BottomActionBar primaryLabel={estimating ? "Calculating..." : "Get fare"} secondaryLabel="Back" onPrimaryPress={handleGetFare} onSecondaryPress={() => navigation.goBack()} primaryDisabled={estimating} primaryIcon="spark" secondaryIcon="arrowLeft" />
+
+        <SectionCard>
+          <View style={styles.stackSm}>
+            <SectionTitle label="Car type" />
+            <View style={styles.optionGrid}>
+              {CAR_TYPE_OPTIONS.map((option) => (
+                <ChoiceCard
+                  key={option.id}
+                  title={option.title}
+                  subtitle={option.subtitle}
+                  selected={bookingForm.carType === option.id}
+                  onPress={() => dispatch(updateBookingForm({ carType: option.id }))}
+                />
+              ))}
+            </View>
+          </View>
+        </SectionCard>
+
+        <SectionCard>
+          <View style={styles.stackSm}>
+            <SectionTitle label="Vehicle" />
+            <TextField
+              label="Brand and model"
+              placeholder="e.g. Maruti Swift"
+              value={bookingForm.carBrandModel}
+              onChangeText={(value) => dispatch(updateBookingForm({ carBrandModel: value }))}
+              icon="document"
+            />
+            <TextField
+              label="Car number"
+              placeholder="e.g. KA 05 AB 1234"
+              value={bookingForm.carNumber}
+              onChangeText={(value) => dispatch(updateBookingForm({ carNumber: value.toUpperCase() }))}
+              icon="ticket"
+            />
+          </View>
+        </SectionCard>
+
+        <TextField
+          label="Notes"
+          placeholder="Anything the driver should know?"
+          value={bookingForm.instructions}
+          onChangeText={(value) => dispatch(updateBookingForm({ instructions: value }))}
+          icon="document"
+          multiline
+        />
+
+        <BottomActionBar
+          primaryLabel={estimating ? "Calculating..." : "Get fare"}
+          secondaryLabel="Back"
+          onPrimaryPress={handleContinue}
+          onSecondaryPress={() => navigation.goBack()}
+          primaryDisabled={
+            estimating ||
+            !bookingForm.transmissionType ||
+            !bookingForm.carType ||
+            !bookingForm.carBrandModel ||
+            !bookingForm.carNumber
+          }
+          primaryIcon="spark"
+          secondaryIcon="arrowLeft"
+        />
       </View>
     </Screen>
   );
@@ -617,21 +725,23 @@ export function CustomerQuoteScreen() {
       setLoading(true);
       const roundedDistanceKm = parsePositiveInt(bookingForm.distanceKm, 31);
       const predictedDriveMinutes = parsePositiveInt(bookingForm.predictedDriveMinutes, 105);
+      const inferredPickup = inferBengaluruCoords(bookingForm.pickup);
+      const inferredDrop = inferBengaluruCoords(bookingForm.drop);
       const response = await customerApi.quote(accessToken, {
         service_type: toApiServiceType(bookingForm.serviceType),
         pickup: {
           label: bookingForm.pickup,
           address_line_1: bookingForm.pickup,
           city_id: BENGALURU_CITY_ID,
-          latitude: 12.9352,
-          longitude: 77.6245
+          latitude: bookingForm.pickupLatitude ?? inferredPickup?.latitude ?? 12.9352,
+          longitude: bookingForm.pickupLongitude ?? inferredPickup?.longitude ?? 77.6245
         },
         drop: {
           label: bookingForm.drop,
           address_line_1: bookingForm.drop,
           city_id: BENGALURU_CITY_ID,
-          latitude: 12.9698,
-          longitude: 77.75
+          latitude: bookingForm.dropLatitude ?? inferredDrop?.latitude ?? 12.9698,
+          longitude: bookingForm.dropLongitude ?? inferredDrop?.longitude ?? 77.75
         },
         scheduled_pickup_at: bookingForm.scheduleAt,
         expected_duration_minutes: predictedDriveMinutes,
@@ -725,6 +835,9 @@ export function CustomerBookingReviewScreen() {
     const response = await customerApi.createBooking(accessToken, {
       quote_id: quote.quote_id,
       service_type: toApiServiceType(bookingForm.serviceType),
+      pickup_label: bookingForm.pickup,
+      drop_label: bookingForm.drop,
+      scheduled_pickup_at: bookingForm.scheduleAt,
       instructions: bookingForm.instructions
     });
     const deduplicated = bookings.filter((b) => b.booking_id !== response.data.booking_id);
@@ -791,6 +904,8 @@ export function CustomerAssignedDriverScreen() {
   const activeBookingId = useAppSelector((state) => state.customer.activeBookingId);
   const bookings = useAppSelector((state) => state.customer.bookings);
   const booking = bookings.find((item) => item.booking_id === activeBookingId) ?? bookings[0];
+  const pickupCoords = inferBengaluruCoords(booking?.pickup_label);
+  const dropCoords = inferBengaluruCoords(booking?.drop_label);
   const pickupOtp = booking?.pickup_otp ?? "4821";
   const otpDigits = pickupOtp.split("");
 
@@ -818,6 +933,9 @@ export function CustomerAssignedDriverScreen() {
           serviceType={toUiServiceType(booking?.service_type ?? "SCHEDULED_ONE_WAY")}
           distanceLabel={booking?.driver?.distance_km ? `${booking.driver.distance_km} km away` : "3.2 km away"}
           durationLabel={`${booking?.driver?.eta_minutes ?? 17} min`}
+          pickupCoords={pickupCoords ?? undefined}
+          dropCoords={dropCoords ?? undefined}
+          interactive
         />
         <SectionCard>
           <View style={styles.stackSm}>
@@ -866,13 +984,36 @@ export function CustomerStartTripScreen() {
 
 export function CustomerActiveTripScreen() {
   const navigation = useNavigation<any>();
+  const bookingForm = useAppSelector((state) => state.customer.bookingForm);
+  const { coords } = useCurrentLocation({ autoRequest: true, liveUpdates: true });
+
+  const pickupCoords =
+    bookingForm.pickupLatitude != null && bookingForm.pickupLongitude != null
+      ? { latitude: bookingForm.pickupLatitude, longitude: bookingForm.pickupLongitude }
+      : inferBengaluruCoords(bookingForm.pickup) ?? undefined;
+  const dropCoords =
+    bookingForm.dropLatitude != null && bookingForm.dropLongitude != null
+      ? { latitude: bookingForm.dropLatitude, longitude: bookingForm.dropLongitude }
+      : inferBengaluruCoords(bookingForm.drop) ?? undefined;
+  const routeDistance = parsePositiveInt(bookingForm.distanceKm, 0);
+  const routeMinutes = parsePositiveInt(bookingForm.predictedDriveMinutes, 0);
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Trip" title="Live trip." subtitle="Track and get help." visualVariant="customer" />
+      <HeaderBlock eyebrow="Trip" title="Live trip" subtitle="Track route and get help." visualVariant="customer" />
       <View style={styles.stackMd}>
         <TripMetricRow />
-        <MapPlaceholderCard />
+        <RydvrseMapPreview
+          pickupLabel={bookingForm.pickup}
+          dropLabel={bookingForm.drop}
+          serviceType={bookingForm.serviceType}
+          pickupCoords={pickupCoords}
+          dropCoords={dropCoords}
+          currentCoords={coords}
+          distanceLabel={routeDistance ? `${routeDistance} km` : undefined}
+          durationLabel={routeMinutes ? `${routeMinutes} min` : undefined}
+          interactive
+        />
         <SectionCard>
           <View style={styles.stackSm}>
             <KeyValueRow label="Trip timer" value="00:24" />
@@ -1070,11 +1211,10 @@ function FaqCard({ faq, onPress }: { faq: SupportFaq; onPress: () => void }) {
 export function CustomerSupportScreen() {
   const navigation = useNavigation<any>();
   const [query, setQuery] = useState("");
-  const [expanded, setExpanded] = useState(false);
 
   const trimmedQuery = query.trim();
   const filtered = useMemo(() => searchFaqs(trimmedQuery), [trimmedQuery]);
-  const visibleFaqs = trimmedQuery.length > 0 ? filtered : expanded ? SUPPORT_FAQS : SUPPORT_FAQS.slice(0, 5);
+  const visibleFaqs = trimmedQuery.length > 0 ? filtered : SUPPORT_FAQS.slice(0, 3);
 
   const openChat = useCallback(
     (faq?: SupportFaq) => {
@@ -1088,7 +1228,11 @@ export function CustomerSupportScreen() {
 
   return (
     <Screen scrollable={false}>
-      <ScreenHeader title="Help" subtitle="Find an answer or chat with support." />
+      <ScreenHeader
+        title="Help"
+        subtitle="Quick answers and chat."
+        onBack={() => navigation.navigate("CustomerHome")}
+      />
       <ScrollView
         contentContainerStyle={styles.stackMd}
         showsVerticalScrollIndicator={false}
@@ -1107,7 +1251,7 @@ export function CustomerSupportScreen() {
               <AppIcon name="help" size={18} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
             </View>
             <AppText variant="bodyStrong">Chat with us</AppText>
-            <AppText variant="caption" style={styles.supportQuickHint}>Typical wait &lt; 2 min</AppText>
+            <AppText variant="caption" style={styles.supportQuickHint}>Avg wait &lt; 2 min</AppText>
           </Pressable>
           <Pressable
             style={styles.supportQuickCardAlt}
@@ -1119,7 +1263,7 @@ export function CustomerSupportScreen() {
               <AppIcon name="calendar" size={18} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
             </View>
             <AppText variant="bodyStrong">My trips</AppText>
-            <AppText variant="caption" style={styles.supportQuickHint}>Report an issue per trip</AppText>
+            <AppText variant="caption" style={styles.supportQuickHint}>Report trip issue</AppText>
           </Pressable>
         </View>
 
@@ -1148,34 +1292,6 @@ export function CustomerSupportScreen() {
             ))}
           </View>
         )}
-
-        {trimmedQuery.length === 0 && SUPPORT_FAQS.length > 5 ? (
-          <Pressable
-            onPress={() => setExpanded((prev) => !prev)}
-            style={styles.viewMoreButton}
-            accessibilityRole="button"
-            accessibilityLabel={expanded ? "Show fewer FAQs" : "View more FAQs"}
-          >
-            <AppText variant="bodyStrong" style={styles.viewMoreText}>
-              {expanded ? "Show fewer" : `View more (${SUPPORT_FAQS.length - 5})`}
-            </AppText>
-          </Pressable>
-        ) : null}
-
-        <SectionCard>
-          <View style={styles.supportContactRow}>
-            <View style={styles.supportContactIcon}>
-              <AppIcon name="shield" size={18} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
-            </View>
-            <View style={styles.supportContactCopy}>
-              <AppText variant="bodyStrong">24x7 safety line</AppText>
-              <AppText variant="caption">Tap to connect to an on-call responder.</AppText>
-            </View>
-            <Pressable style={styles.supportContactCta} onPress={() => openChat()} accessibilityRole="button" accessibilityLabel="Connect to safety line">
-              <AppText variant="caption" style={styles.supportContactCtaText}>Open</AppText>
-            </Pressable>
-          </View>
-        </SectionCard>
       </ScrollView>
     </Screen>
   );
@@ -1201,6 +1317,8 @@ export function CustomerProfileScreen() {
     <Screen scrollable={false}>
       <ScreenHeader
         title="Profile"
+        subtitle="Manage account"
+        onBack={() => navigation.navigate("CustomerHome")}
         rightSlot={
           <Pressable
             onPress={() => navigation.navigate("CustomerProfileEdit")}
@@ -1264,7 +1382,6 @@ export function CustomerProfileScreen() {
             <KeyValueRow label="Mobile" value={mobile ?? "+91 99999 99999"} />
             <KeyValueRow label="Email" value="meera@rydvrse.app" />
             <KeyValueRow label="City" value="Bengaluru" />
-            <KeyValueRow label="Member since" value="Apr 2024" />
           </View>
         </SectionCard>
 
@@ -1280,7 +1397,6 @@ export function CustomerProfileScreen() {
             </View>
             <View style={styles.profileActionCopy}>
               <AppText variant="bodyStrong">Past trips</AppText>
-              <AppText variant="caption">Invoices, receipts, rebook</AppText>
             </View>
           </Pressable>
           <Pressable
@@ -1294,7 +1410,6 @@ export function CustomerProfileScreen() {
             </View>
             <View style={styles.profileActionCopy}>
               <AppText variant="bodyStrong">Help & support</AppText>
-              <AppText variant="caption">FAQs, chat with an agent</AppText>
             </View>
           </Pressable>
           <Pressable
@@ -1308,7 +1423,6 @@ export function CustomerProfileScreen() {
             </View>
             <View style={styles.profileActionCopy}>
               <AppText variant="bodyStrong">Log out</AppText>
-              <AppText variant="caption">End your session on this device</AppText>
             </View>
           </Pressable>
         </View>
@@ -1486,6 +1600,11 @@ const styles = StyleSheet.create({
   },
   tripTypeGrid: {
     flexDirection: "row",
+    gap: spacing.sm,
+  },
+  optionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   bookingRow: {

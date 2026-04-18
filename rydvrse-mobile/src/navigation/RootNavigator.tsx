@@ -47,6 +47,7 @@ import {
   DriverSupportScreen,
   DriverTripCompleteScreen
 } from "@/screens/driver/DriverScreens";
+import { DriverSupportChatScreen } from "@/screens/driver/DriverSupportChatScreen";
 import { useAppSelector } from "@/store";
 import { colors, fontFamily, radius, semantic, shadows, space } from "@/theme";
 
@@ -198,6 +199,7 @@ function DriverNavigator() {
           <DriverStack.Screen name="DriverAwaitingStart" component={DriverAwaitingStartScreen} />
           <DriverStack.Screen name="DriverActiveTrip" component={DriverActiveTripScreen} />
           <DriverStack.Screen name="DriverTripComplete" component={DriverTripCompleteScreen} />
+          <DriverStack.Screen name="DriverSupportChat" component={DriverSupportChatScreen} />
         </>
       )}
     </DriverStack.Navigator>

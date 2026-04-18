@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 import { AppIcon } from "@/assets/icons/AppIcon";
@@ -10,7 +10,6 @@ import { KeyValueRow } from "@/components/common/KeyValueRow";
 import { StatusBanner } from "@/components/common/StatusBanner";
 import { StatusChip } from "@/components/common/StatusChip";
 import { SectionCard } from "@/components/cards/SectionCard";
-import { MapPlaceholderCard } from "@/components/cards/MapPlaceholderCard";
 import { RydvrseMapPreview } from "@/components/maps/RydvrseMapPreview";
 import { TextField } from "@/components/forms/TextField";
 import { BottomActionBar } from "@/components/layout/BottomActionBar";
@@ -18,13 +17,19 @@ import { HeaderBlock } from "@/components/layout/HeaderBlock";
 import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { Screen } from "@/components/layout/Screen";
 import { Skeleton } from "@/components/loaders/Skeleton";
-import { driverSupportCategories } from "@/constants/support";
+import {
+  DRIVER_SUPPORT_FAQS,
+  DriverSupportFaq,
+  searchDriverFaqs,
+} from "@/constants/driverSupportFaq";
 import { authApi } from "@/services/api/auth";
 import { driverApi } from "@/services/api/driver";
+import { inferBengaluruCoords } from "@/services/maps/bengaluruGeo";
+import { useCurrentLocation } from "@/hooks/useCurrentLocation";
 import { useAppDispatch, useAppSelector } from "@/store";
 import { setActiveAssignmentId, setAvailability, setOffers, setOnboardingStatus } from "@/store/driverSlice";
 import { hydrateSession, logout } from "@/store/sessionSlice";
-import { colors, semantic, spacing } from "@/theme";
+import { colors, radius, semantic, shadows, space, spacing } from "@/theme";
 import { formatCompactTime, formatCurrency } from "@/utils/format";
 
 function resolveAvailabilityTone(status: string): "success" | "warning" | "neutral" {
@@ -111,7 +116,7 @@ export function DriverLoginScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Driver app" title="Sign in to manage jobs, availability, onboarding, and earnings." subtitle="The driver UI is task-first and surfaces earning clarity before acceptance." visualVariant="driver" />
+      <HeaderBlock eyebrow="Driver app" title="Sign in" subtitle="Manage jobs, trips, and earnings." visualVariant="driver" />
       <View style={styles.stackLg}>
         <TextField label="Mobile number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" icon="phone" helperText="OTP sign-in is used for driver identity in the MVP as well." />
         <BottomActionBar primaryLabel={loading ? "Sending OTP..." : "Continue"} onPrimaryPress={handleContinue} primaryDisabled={loading || phone.length < 10} primaryIcon="arrowRight" />
@@ -150,7 +155,7 @@ export function DriverOnboardingChecklistScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Onboarding" title="Make progress explicit so drivers know exactly what blocks approval." subtitle="The checklist is ordered to reduce abandonment and give operations clean review inputs." visualVariant="driver" />
+      <HeaderBlock eyebrow="Onboarding" title="Complete your checklist" subtitle="Finish required steps for approval." visualVariant="driver" />
       <View style={styles.stackMd}>
         {[
           { title: "Personal details", icon: "profile" as const },
@@ -191,7 +196,7 @@ export function DriverDocumentUploadScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Document upload" title="Document quality matters because approval quality affects marketplace trust." subtitle="The MVP keeps uploads simple and lets ops review corrections manually." visualVariant="trust" />
+      <HeaderBlock eyebrow="Document upload" title="Upload required documents" subtitle="Ops review starts after submission." visualVariant="trust" />
       <View style={styles.stackMd}>
         <TextField label="Driving license" value={license} onChangeText={setLicense} icon="document" />
         <TextField label="Identity document" value={identity} onChangeText={setIdentity} icon="id" />
@@ -217,7 +222,7 @@ export function DriverOnboardingStatusScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Review status" title="Keep approval status visible so nothing fails as a surprise." subtitle="Correction reasons and compliance blockers should be shown before they prevent work." visualVariant="status" />
+      <HeaderBlock eyebrow="Review status" title="Onboarding status" subtitle="Track review and corrections." visualVariant="status" />
       <View style={styles.stackMd}>
         <StatusBanner tone={tone as any} title={title} message={message} />
         <BottomActionBar
@@ -242,6 +247,7 @@ export function DriverHomeScreen() {
   const availability = useAppSelector((state) => state.driver.availability);
   const offers = useAppSelector((state) => state.driver.offers);
   const dispatch = useAppDispatch();
+  const { coords } = useCurrentLocation({ autoRequest: true, liveUpdates: true });
   const [loading, setLoading] = useState(true);
   const [earningsToday, setEarningsToday] = useState(0);
 
@@ -266,9 +272,17 @@ export function DriverHomeScreen() {
     };
   }, [accessToken, dispatch]);
 
+  const nextOffer = offers[0];
+  const pickupCoords = inferBengaluruCoords(nextOffer?.pickup_zone ?? "Koramangala");
+  const dropCoords = inferBengaluruCoords(nextOffer ? `${nextOffer.service_type} zone` : "Indiranagar");
+
   return (
     <Screen>
-      <HeaderBlock eyebrow="Driver home" title="A task-first dashboard keeps focus on jobs, availability, and payout clarity." subtitle="If compliance breaks later, availability should block here before the driver wastes time waiting for work." visualVariant="driver" />
+      <ScreenHeader
+        title="Driver home"
+        subtitle={`You are ${availability.replaceAll("_", " ").toLowerCase()} in Bengaluru`}
+        showBack={false}
+      />
       <View style={styles.stackMd}>
         {loading ? (
           <SectionCard>
@@ -277,6 +291,20 @@ export function DriverHomeScreen() {
           </SectionCard>
         ) : (
           <>
+            <View style={styles.driverMapCard}>
+              <RydvrseMapPreview
+                pickupLabel={nextOffer?.pickup_zone ?? "Koramangala"}
+                dropLabel={nextOffer ? `${nextOffer.service_type.replaceAll("_", " ")} zone` : "Awaiting next offer"}
+                serviceType={nextOffer?.service_type ?? "ONE_WAY_DROP"}
+                distanceLabel={nextOffer ? undefined : undefined}
+                durationLabel={nextOffer ? formatCompactTime(nextOffer.scheduled_at) : undefined}
+                pickupCoords={pickupCoords ?? undefined}
+                dropCoords={dropCoords ?? undefined}
+                currentCoords={coords}
+                interactive
+                minimal
+              />
+            </View>
             <DriverSignalStrip />
             <SectionCard>
               <View style={styles.stackSm}>
@@ -359,7 +387,7 @@ export function DriverJobOfferScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Incoming offer" title="Drivers should always see the earning preview before they commit." subtitle="This is one of the key trust and retention levers on the supply side." visualVariant="driver" />
+      <HeaderBlock eyebrow="Incoming offer" title="Review and accept offer" subtitle="Earning preview shown before accept." visualVariant="driver" />
       <View style={styles.stackMd}>
         {currentOffer ? (
           <>
@@ -390,7 +418,7 @@ export function DriverAssignmentDetailScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Accepted assignment" title="Once accepted, the driver needs the full trip context without distraction." subtitle="If reassignment or cancellation happens later, this view should update immediately and remove stale actions." visualVariant="driver" />
+      <HeaderBlock eyebrow="Assignment" title="Trip details" subtitle="Pickup context and next actions." visualVariant="driver" />
       <View style={styles.stackMd}>
         <SectionCard>
           <View style={styles.stackSm}>
@@ -409,7 +437,11 @@ export function DriverPickupScreen() {
   const navigation = useNavigation<any>();
   const accessToken = useAppSelector((state) => state.session.accessToken);
   const assignmentId = useAppSelector((state) => state.driver.activeAssignmentId) ?? "trip-001";
+  const { coords } = useCurrentLocation({ autoRequest: true, liveUpdates: true });
   const [marking, setMarking] = useState(false);
+
+  const pickupCoords = inferBengaluruCoords("Koramangala 4th Block");
+  const dropCoords = inferBengaluruCoords("Whitefield Main Road");
 
   const handleArrived = async () => {
     if (!accessToken) {
@@ -431,6 +463,10 @@ export function DriverPickupScreen() {
           serviceType="ONE_WAY_DROP"
           distanceLabel="3.2 km"
           durationLabel="8 min"
+          pickupCoords={pickupCoords ?? undefined}
+          dropCoords={dropCoords ?? undefined}
+          currentCoords={coords}
+          interactive
         />
         <SectionCard>
           <View style={styles.stackSm}>
@@ -501,12 +537,25 @@ export function DriverAwaitingStartScreen() {
 
 export function DriverActiveTripScreen() {
   const navigation = useNavigation<any>();
+  const { coords } = useCurrentLocation({ autoRequest: true, liveUpdates: true });
+  const pickupCoords = inferBengaluruCoords("Koramangala 4th Block");
+  const dropCoords = inferBengaluruCoords("Whitefield Main Road");
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Active trip" title="Trip execution stays intentionally uncluttered for the driver." subtitle="Destination, trip state, navigation, support, and completion are the only controls that matter here." visualVariant="driver" />
+      <HeaderBlock eyebrow="Active trip" title="Trip in progress" subtitle="Navigation, support, and completion." visualVariant="driver" />
       <View style={styles.stackMd}>
-        <MapPlaceholderCard title="Trip route" subtitle="Route guidance and trip timer appear here while the driver stays focused on execution." />
+        <RydvrseMapPreview
+          pickupLabel="Koramangala 4th Block"
+          dropLabel="Whitefield Main Road"
+          serviceType="ONE_WAY_DROP"
+          pickupCoords={pickupCoords ?? undefined}
+          dropCoords={dropCoords ?? undefined}
+          currentCoords={coords}
+          distanceLabel="31 km"
+          durationLabel="105 min"
+          interactive
+        />
         <StatusBanner tone="warning" title="Weak connection handling" message="If connectivity drops, the UI should stay clear that the trip is still active and retry safely." />
         <BottomActionBar primaryLabel="Complete trip" secondaryLabel="Trip issue" onPrimaryPress={() => navigation.navigate("DriverTripComplete")} onSecondaryPress={() => navigation.navigate("DriverSupport")} primaryIcon="check" secondaryIcon="alert" />
       </View>
@@ -539,7 +588,7 @@ export function DriverTripCompleteScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Trip complete" title="Driver earnings should be visible immediately and without hidden deductions." subtitle="This screen is where payout trust gets reinforced or damaged, so the breakdown must stay clean." visualVariant="status" />
+      <HeaderBlock eyebrow="Trip complete" title="Payout summary" subtitle="Visible earning breakdown." visualVariant="status" />
       <View style={styles.stackMd}>
         <SectionCard>
           <View style={styles.stackSm}>
@@ -582,7 +631,7 @@ export function DriverEarningsScreen() {
 
   return (
     <Screen>
-      <HeaderBlock eyebrow="Earnings" title="Historical earnings keep payout logic transparent over time." subtitle="Trip-level entries make it easier for drivers to trust the platform and challenge real issues fairly." visualVariant="driver" />
+      <HeaderBlock eyebrow="Earnings" title="Payout history" subtitle="Trip-wise payout ledger." visualVariant="driver" />
       <View style={styles.stackMd}>
         {loading ? (
           <>
@@ -618,62 +667,235 @@ export function DriverEarningsScreen() {
   );
 }
 
-export function DriverSupportScreen() {
-  const accessToken = useAppSelector((state) => state.session.accessToken);
-  const [category, setCategory] = useState(driverSupportCategories[0]);
-  const [description, setDescription] = useState("Customer is not reachable at the pickup and I need ops guidance.");
-  const [success, setSuccess] = useState("");
+function DriverFaqCard({
+  faq,
+  onPress,
+}: {
+  faq: DriverSupportFaq;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={styles.faqCard}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open answer for ${faq.question}`}
+    >
+      <View style={styles.faqIcon}>
+        <AppIcon name="help" size={17} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+      </View>
+      <View style={styles.faqCopy}>
+        <AppText variant="caption" style={styles.faqCategory}>{faq.category}</AppText>
+        <AppText variant="bodyStrong" numberOfLines={2}>{faq.question}</AppText>
+      </View>
+      <AppIcon name="arrowRight" size={16} color={colors.neutral[400]} secondaryColor={colors.neutral[400]} />
+    </Pressable>
+  );
+}
 
-  const handleSubmit = async () => {
-    if (!accessToken) {
-      return;
-    }
-    await driverApi.createSupportTicket(accessToken, {
-      category,
-      description
-    });
-    setSuccess("Driver support ticket created successfully.");
-  };
+export function DriverSupportScreen() {
+  const navigation = useNavigation<any>();
+  const [query, setQuery] = useState("");
+
+  const trimmedQuery = query.trim();
+  const filtered = useMemo(() => searchDriverFaqs(trimmedQuery), [trimmedQuery]);
+  const visibleFaqs =
+    trimmedQuery.length > 0
+      ? filtered
+      : DRIVER_SUPPORT_FAQS.slice(0, 3);
+
+  const openChat = useCallback(
+    (faq?: DriverSupportFaq) => {
+      navigation.navigate("DriverSupportChat", {
+        faqId: faq?.id ?? "custom",
+        question: faq?.question ?? trimmedQuery,
+      });
+    },
+    [navigation, trimmedQuery],
+  );
 
   return (
-    <Screen>
-      <HeaderBlock eyebrow="Driver support" title="Drivers need a fast support path for pickup, trip, payout, and compliance issues." subtitle="Context is auto-attached in the final implementation; the UI should keep the reporting form calm and short." visualVariant="trust" />
-      <View style={styles.stackMd}>
-        <TextField label="Category" value={category} onChangeText={setCategory} icon="help" />
-        <TextField label="Describe the issue" value={description} onChangeText={setDescription} icon="document" multiline />
-        {success ? <StatusBanner tone="success" title="Ticket submitted" message={success} /> : null}
-        <BottomActionBar primaryLabel="Submit issue" onPrimaryPress={handleSubmit} primaryIcon="check" />
-      </View>
+    <Screen scrollable={false}>
+      <ScreenHeader
+        title="Help"
+        subtitle="Quick answers and chat."
+        onBack={() => navigation.navigate("DriverHome")}
+      />
+      <ScrollView contentContainerStyle={styles.stackMd} showsVerticalScrollIndicator={false}>
+        <TextField
+          label="Search help"
+          placeholder="Try 'payout', 'pickup', or 'document'"
+          value={query}
+          onChangeText={setQuery}
+          icon="help"
+        />
+
+        <View style={styles.supportQuickRow}>
+          <Pressable style={styles.supportQuickCard} onPress={() => openChat()} accessibilityRole="button" accessibilityLabel="Chat with a driver specialist">
+            <View style={styles.supportQuickIcon}>
+              <AppIcon name="help" size={18} color={semantic.text.onBrand} secondaryColor={semantic.text.onBrand} />
+            </View>
+            <AppText variant="bodyStrong">Chat with us</AppText>
+            <AppText variant="caption" style={styles.supportQuickHint}>Avg wait &lt; 2 min</AppText>
+          </Pressable>
+          <Pressable
+            style={styles.supportQuickCardAlt}
+            onPress={() => navigation.navigate("DriverEarnings")}
+            accessibilityRole="button"
+            accessibilityLabel="Open earnings"
+          >
+            <View style={styles.supportQuickIconAlt}>
+              <AppIcon name="wallet" size={18} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <AppText variant="bodyStrong">Earnings</AppText>
+            <AppText variant="caption" style={styles.supportQuickHint}>Payout issues</AppText>
+          </Pressable>
+        </View>
+
+        <View style={styles.sectionHeaderRow}>
+          <AppText variant="section">
+            {trimmedQuery ? `Matches for "${trimmedQuery}"` : "Popular questions"}
+          </AppText>
+          {trimmedQuery ? (
+            <AppText variant="caption" style={styles.sectionHeaderMeta}>
+              {filtered.length} result{filtered.length === 1 ? "" : "s"}
+            </AppText>
+          ) : null}
+        </View>
+
+        {visibleFaqs.length === 0 ? (
+          <EmptyState
+            title="No results"
+            message="Start a chat and we'll help you directly."
+            actionLabel="Chat with us"
+            onAction={() => openChat()}
+          />
+        ) : (
+          <View style={styles.stackSm}>
+            {visibleFaqs.map((faq) => (
+              <DriverFaqCard key={faq.id} faq={faq} onPress={() => openChat(faq)} />
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </Screen>
   );
 }
 
 export function DriverProfileScreen() {
   const dispatch = useAppDispatch();
+  const navigation = useNavigation<any>();
   const availability = useAppSelector((state) => state.driver.availability);
   const onboardingStatus = useAppSelector((state) => state.driver.onboardingStatus);
+  const userName = useAppSelector((state) => state.session.userName);
+  const mobile = useAppSelector((state) => state.session.mobileNumber);
+  const offers = useAppSelector((state) => state.driver.offers);
+
+  const fullName = userName ?? "Ravi Kumar";
+  const initials = fullName
+    .split(" ")
+    .map((part) => part.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const tripCount = offers.length;
+  const acceptedCount = Math.max(0, offers.length - 1);
 
   return (
-    <Screen>
-      <HeaderBlock eyebrow="Driver profile" title="Compliance health should be visible before it blocks earning opportunities." subtitle="This screen keeps profile basics, document state, and logout in one simple maintenance view." visualVariant="driver" />
-      <View style={styles.stackMd}>
+    <Screen scrollable={false}>
+      <ScreenHeader
+        title="Profile"
+        subtitle="Account and status"
+        onBack={() => navigation.navigate("DriverHome")}
+      />
+      <ScrollView contentContainerStyle={styles.profileScroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileHero}>
+          <View style={styles.profileAvatarOuter}>
+            <View style={styles.profileAvatarInner}>
+              <AppText variant="section" style={styles.profileAvatarText}>{initials || "R"}</AppText>
+            </View>
+          </View>
+          <AppText variant="section" style={styles.profileName}>{fullName}</AppText>
+          <AppText variant="caption" style={styles.profileHandle}>{mobile ?? "+91 99999 99999"}</AppText>
+
+          <View style={styles.profileStatsRow}>
+            <View style={styles.profileStatCell}>
+              <AppText variant="section">{tripCount}</AppText>
+              <AppText variant="caption">Offers</AppText>
+            </View>
+            <View style={styles.profileStatDivider} />
+            <View style={styles.profileStatCell}>
+              <AppText variant="section">{acceptedCount}</AppText>
+              <AppText variant="caption">Accepted</AppText>
+            </View>
+            <View style={styles.profileStatDivider} />
+            <View style={styles.profileStatCell}>
+              <AppText variant="section">4.9</AppText>
+              <AppText variant="caption">Rating</AppText>
+            </View>
+          </View>
+
+          <View style={styles.profileBadgeRow}>
+            <StatusChip label={availability.replaceAll("_", " ")} tone={resolveAvailabilityTone(availability)} />
+            <StatusChip label={onboardingStatus.replaceAll("_", " ")} tone={resolveOnboardingTone(onboardingStatus)} />
+          </View>
+        </View>
+
         <SectionCard>
           <View style={styles.stackSm}>
-            <View style={styles.badgeRow}>
-              <StatusChip label={availability.replaceAll("_", " ")} tone={resolveAvailabilityTone(availability)} />
-              <StatusChip label={onboardingStatus.replaceAll("_", " ")} tone={resolveOnboardingTone(onboardingStatus)} />
-            </View>
-            <KeyValueRow label="Driver name" value="Ravi Kumar" />
+            <KeyValueRow label="Driver name" value={fullName} />
+            <KeyValueRow label="Mobile" value={mobile ?? "+91 99999 99999"} />
             <KeyValueRow label="Availability" value={availability} />
             <KeyValueRow label="Onboarding" value={onboardingStatus} />
-            <KeyValueRow label="Compliance" value="Healthy" />
           </View>
         </SectionCard>
-        <BottomActionBar primaryLabel="Log out" primaryIcon="logout" onPrimaryPress={() => {
-          dispatch(setOnboardingStatus("NOT_STARTED"));
-          dispatch(logout());
-        }} />
-      </View>
+
+        <View style={styles.profileActionList}>
+          <Pressable
+            style={styles.profileActionRow}
+            onPress={() => navigation.navigate("DriverEarnings")}
+            accessibilityRole="button"
+            accessibilityLabel="View earnings"
+          >
+            <View style={styles.profileActionIcon}>
+              <AppIcon name="wallet" size={17} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.profileActionCopy}>
+              <AppText variant="bodyStrong">Earnings</AppText>
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.profileActionRow}
+            onPress={() => navigation.navigate("DriverSupport")}
+            accessibilityRole="button"
+            accessibilityLabel="Get help"
+          >
+            <View style={styles.profileActionIcon}>
+              <AppIcon name="help" size={17} color={colors.brand.primary} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.profileActionCopy}>
+              <AppText variant="bodyStrong">Help & support</AppText>
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.profileActionRow}
+            onPress={() => {
+              dispatch(setOnboardingStatus("NOT_STARTED"));
+              dispatch(logout());
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Log out"
+          >
+            <View style={[styles.profileActionIcon, styles.profileActionIconDanger]}>
+              <AppIcon name="logout" size={17} color={colors.brand.strong} secondaryColor={colors.brand.strong} />
+            </View>
+            <View style={styles.profileActionCopy}>
+              <AppText variant="bodyStrong">Log out</AppText>
+            </View>
+          </Pressable>
+        </View>
+      </ScrollView>
     </Screen>
   );
 }
@@ -749,5 +971,211 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: spacing.md
-  }
+  },
+  driverMapCard: {
+    height: 200,
+    borderRadius: radius.xl,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  supportQuickRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  supportQuickCard: {
+    flex: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    backgroundColor: colors.brand.primary,
+    gap: spacing.xs,
+    ...shadows.sm,
+  },
+  supportQuickCardAlt: {
+    flex: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+    gap: spacing.xs,
+  },
+  supportQuickIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.brand.strong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportQuickIconAlt: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportQuickHint: {
+    color: semantic.text.secondary,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+  },
+  sectionHeaderMeta: {
+    color: semantic.text.secondary,
+  },
+  faqCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  faqIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  faqCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  faqCategory: {
+    color: semantic.text.secondary,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  viewMoreButton: {
+    alignSelf: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+    backgroundColor: semantic.bg.muted,
+  },
+  viewMoreText: {
+    color: semantic.text.primary,
+  },
+  supportContactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  supportContactIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportContactCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  supportContactCta: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 16,
+    backgroundColor: colors.brand.primary,
+  },
+  supportContactCtaText: {
+    color: semantic.text.onBrand,
+  },
+  profileScroll: {
+    gap: spacing.md,
+    paddingBottom: space[8],
+  },
+  profileHero: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+  },
+  profileAvatarOuter: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: colors.brand.primary,
+    padding: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileAvatarInner: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: semantic.bg.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: semantic.bg.surface,
+  },
+  profileAvatarText: {
+    fontSize: 30,
+    color: semantic.text.primary,
+  },
+  profileName: {
+    marginTop: spacing.xs,
+  },
+  profileHandle: {
+    color: semantic.text.secondary,
+  },
+  profileStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  profileStatCell: {
+    alignItems: "center",
+    minWidth: 72,
+  },
+  profileStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: semantic.border.soft,
+  },
+  profileBadgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  profileActionList: {
+    gap: spacing.xs,
+  },
+  profileActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: semantic.bg.surface,
+    borderWidth: 1,
+    borderColor: semantic.border.soft,
+  },
+  profileActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.brand.soft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileActionIconDanger: {
+    backgroundColor: "rgba(255, 95, 95, 0.15)",
+  },
+  profileActionCopy: {
+    flex: 1,
+    gap: 2,
+  },
 });

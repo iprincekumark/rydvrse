@@ -53,13 +53,16 @@ function loadExpoLocation(): any | null {
  *    the caller whether the coordinates are a real device fix.
  *  - Exposes `refresh()` so UI "recenter" buttons can re-request the fix.
  */
-export function useCurrentLocation(options: { autoRequest?: boolean } = {}): UseCurrentLocationResult {
-  const { autoRequest = true } = options;
+export function useCurrentLocation(
+  options: { autoRequest?: boolean; liveUpdates?: boolean } = {},
+): UseCurrentLocationResult {
+  const { autoRequest = true, liveUpdates = false } = options;
   const [coords, setCoords] = useState<Coordinates>(BENGALURU_FALLBACK);
   const [status, setStatus] = useState<LocationStatus>("idle");
   const [usingFallback, setUsingFallback] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const watcherRef = useRef<{ remove: () => void } | null>(null);
 
   const request = useCallback(async () => {
     const Location = loadExpoLocation();
@@ -101,6 +104,28 @@ export function useCurrentLocation(options: { autoRequest?: boolean } = {}): Use
       setStatus("granted");
       setUsingFallback(false);
       setError(null);
+
+      if (liveUpdates && !watcherRef.current && typeof Location.watchPositionAsync === "function") {
+        watcherRef.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy?.Balanced ?? 3,
+            timeInterval: 5000,
+            distanceInterval: 20,
+          },
+          (next: { coords?: { latitude?: number; longitude?: number } }) => {
+            if (!mountedRef.current) {
+              return;
+            }
+            const latitude = Number(next.coords?.latitude);
+            const longitude = Number(next.coords?.longitude);
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+              setCoords({ latitude, longitude });
+              setStatus("granted");
+              setUsingFallback(false);
+            }
+          },
+        );
+      }
     } catch (gpsError) {
       if (!mountedRef.current) {
         return;
@@ -111,7 +136,7 @@ export function useCurrentLocation(options: { autoRequest?: boolean } = {}): Use
       setStatus("unavailable");
       setUsingFallback(true);
     }
-  }, []);
+  }, [liveUpdates]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -122,6 +147,8 @@ export function useCurrentLocation(options: { autoRequest?: boolean } = {}): Use
 
     return () => {
       mountedRef.current = false;
+      watcherRef.current?.remove();
+      watcherRef.current = null;
     };
   }, [autoRequest, request]);
 

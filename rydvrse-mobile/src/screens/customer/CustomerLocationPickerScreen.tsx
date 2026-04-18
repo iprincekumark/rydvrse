@@ -5,6 +5,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { AppIcon } from "@/assets/icons/AppIcon";
 import { AppText } from "@/components/common/AppText";
 import { Screen } from "@/components/layout/Screen";
+import { ScreenHeader } from "@/components/layout/ScreenHeader";
 import { TextField } from "@/components/forms/TextField";
 import { StatusBanner } from "@/components/common/StatusBanner";
 import { useCurrentLocation } from "@/hooks/useCurrentLocation";
@@ -36,12 +37,15 @@ export function CustomerLocationPickerScreen() {
     field === "pickup" ? "Search pickup location" : "Search drop location";
 
   const [query, setQuery] = useState(seed);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const [results, setResults] = useState<PlaceSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryRef = useRef(seed);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isSearching = hasInteracted && query.trim().length > 0;
 
   const { coords, usingFallback, status, refresh } = useCurrentLocation({ autoRequest: true });
 
@@ -90,7 +94,23 @@ export function CustomerLocationPickerScreen() {
 
   const handleSelect = useCallback(
     (suggestion: PlaceSuggestion) => {
-      dispatch(updateBookingForm({ [field]: suggestion.label }));
+      if (field === "pickup") {
+        dispatch(
+          updateBookingForm({
+            pickup: suggestion.label,
+            pickupLatitude: suggestion.latitude ?? null,
+            pickupLongitude: suggestion.longitude ?? null,
+          }),
+        );
+      } else {
+        dispatch(
+          updateBookingForm({
+            drop: suggestion.label,
+            dropLatitude: suggestion.latitude ?? null,
+            dropLongitude: suggestion.longitude ?? null,
+          }),
+        );
+      }
       navigation.goBack();
     },
     [dispatch, field, navigation]
@@ -130,55 +150,49 @@ export function CustomerLocationPickerScreen() {
 
   return (
     <Screen backgroundColor={semantic.bg.app}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <AppIcon name="arrowLeft" size={20} color={semantic.text.primary} secondaryColor={colors.brand.strong} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <AppText variant="section">{title}</AppText>
-          <AppText variant="caption">Tap a result to continue.</AppText>
-        </View>
-      </View>
+      <ScreenHeader title={title} subtitle={!isSearching ? "Tap a result to continue." : undefined} onBack={() => navigation.goBack()} />
 
       <View style={styles.searchWrap}>
         <TextField
           label={placeholder}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(text) => {
+            if (!hasInteracted) {
+              setHasInteracted(true);
+            }
+            setQuery(text);
+          }}
           icon={field === "pickup" ? "pin" : "route"}
-          helperText={loading ? "Searching..." : "Powered by Ola Maps and your recent places."}
+          helperText={loading ? "Searching..." : isSearching ? undefined : "Powered by Ola Maps and your recent places."}
         />
       </View>
 
-      <Pressable
-        onPress={handleUseCurrentLocation}
-        style={({ pressed }) => [styles.currentRow, pressed && { opacity: 0.85 }]}
-        disabled={locating}
-        accessibilityRole="button"
-        accessibilityLabel="Use current location"
-      >
-        <View style={styles.currentIcon}>
-          {locating ? (
-            <ActivityIndicator color={colors.brand.ink} />
-          ) : (
-            <AppIcon name="pin" size={18} color={colors.brand.ink} secondaryColor={colors.brand.ink} />
-          )}
-        </View>
-        <View style={styles.currentCopy}>
-          <AppText variant="bodyStrong">Use current location</AppText>
-          <AppText variant="caption">
-            {usingFallback ? "Bengaluru default — enable GPS for a precise fix." : "GPS fix ready."}
-          </AppText>
-        </View>
-        <AppIcon name="arrowRight" size={18} color={colors.brand.ink} secondaryColor={colors.brand.ink} />
-      </Pressable>
+      {!isSearching ? (
+        <Pressable
+          onPress={handleUseCurrentLocation}
+          style={({ pressed }) => [styles.currentRow, pressed && { opacity: 0.85 }]}
+          disabled={locating}
+          accessibilityRole="button"
+          accessibilityLabel="Use current location"
+        >
+          <View style={styles.currentIcon}>
+            {locating ? (
+              <ActivityIndicator color={colors.brand.ink} />
+            ) : (
+              <AppIcon name="pin" size={18} color={colors.brand.ink} secondaryColor={colors.brand.ink} />
+            )}
+          </View>
+          <View style={styles.currentCopy}>
+            <AppText variant="bodyStrong">Use current location</AppText>
+            <AppText variant="caption">
+              {usingFallback ? "Bengaluru default — enable GPS for a precise fix." : "GPS fix ready."}
+            </AppText>
+          </View>
+          <AppIcon name="arrowRight" size={18} color={colors.brand.ink} secondaryColor={colors.brand.ink} />
+        </Pressable>
+      ) : null}
 
-      {bannerMessage ? <StatusBanner tone="info" title="Heads up" message={bannerMessage} /> : null}
+      {!isSearching && bannerMessage ? <StatusBanner tone="info" title="Heads up" message={bannerMessage} /> : null}
       {error ? <StatusBanner tone="warning" title="Search notice" message={error} /> : null}
 
       <FlatList
@@ -238,26 +252,6 @@ export function CustomerLocationPickerScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: semantic.bg.surface,
-    borderWidth: 1,
-    borderColor: semantic.border.soft,
-  },
-  headerCopy: {
-    flex: 1,
-    gap: 2,
-  },
   searchWrap: {
     marginBottom: spacing.sm,
   },

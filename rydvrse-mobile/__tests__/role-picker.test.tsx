@@ -1,5 +1,6 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import { NavigationContainer } from "@react-navigation/native";
 import { Provider } from "react-redux";
 
 import { RolePickerScreen } from "@/screens/shared/RolePickerScreen";
@@ -9,7 +10,9 @@ describe("RolePickerScreen", () => {
   it("switches the workspace into customer mode", () => {
     const { getByText } = render(
       <Provider store={store}>
-        <RolePickerScreen />
+        <NavigationContainer>
+          <RolePickerScreen />
+        </NavigationContainer>
       </Provider>
     );
 

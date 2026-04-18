@@ -42,11 +42,8 @@ This document is intended to be the commercial source of truth for MVP implement
 
 This document applies only to the MVP and only to in-scope services:
 
-- Scheduled Local
 - Scheduled One-Way Drop
 - Scheduled Round Trip
-- Airport Pickup/Drop
-- Late-Night Safe Return
 
 This document does not cover:
 
@@ -57,6 +54,8 @@ This document does not cover:
 - dynamic AI-led pricing
 - outstation multi-day pricing
 - corporate contract pricing
+
+For detailed Bengaluru launch fare formulas and worked examples used by the current mobile booking flow, refer to `Pricing_Calculation_Documentation.md`.
 
 ## 3. Commercial Principles
 
